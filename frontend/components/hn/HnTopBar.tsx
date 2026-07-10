@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import LatencyBadge from "@/components/shell/LatencyBadge";
+import { withBase } from "@/lib/api";
 
 /**
  * HN-style topbar: orange rail with a small white-on-orange brand mark,
@@ -32,10 +33,10 @@ export default function HnTopBar({ subtitle }: { subtitle?: string }) {
   const pathname = usePathname() || "/";
   return (
     <div className="hn-topbar">
-      <a className="hn-topbar-mark" href="/" aria-label="Predictive HN home">
+      <a className="hn-topbar-mark" href={withBase("/")} aria-label="Predictive HN home">
         PH
       </a>
-      <a className="hn-topbar-brand" href="/">
+      <a className="hn-topbar-brand" href={withBase("/")}>
         Predictive HN
       </a>
       <nav className="hn-topbar-nav">
@@ -45,7 +46,7 @@ export default function HnTopBar({ subtitle }: { subtitle?: string }) {
             <span key={item.label}>
               {i > 0 && <span className="hn-topbar-sep">|</span>}
               <a
-                href={item.href}
+                href={withBase(item.href)}
                 className={active ? "hn-topbar-active" : ""}
                 {...(item.external
                   ? { target: "_blank", rel: "noopener noreferrer" }
@@ -64,7 +65,7 @@ export default function HnTopBar({ subtitle }: { subtitle?: string }) {
           <span key={item.label}>
             {i > 0 && <span className="hn-topbar-sep">|</span>}
             <a
-              href={item.href}
+              href={withBase(item.href)}
               {...(item.external
                 ? { target: "_blank", rel: "noopener noreferrer" }
                 : {})}

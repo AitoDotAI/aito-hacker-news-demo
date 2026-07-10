@@ -1,5 +1,17 @@
+// Sub-path prefix, baked at build (empty for root/subdomain deploys). Next's
+// basePath auto-prefixes assets + next/link, but NOT manual fetch() or plain
+// <a href> — so we prepend it ourselves for both.
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
+/** Prefix a root-relative internal href with the mount base path; leave
+ *  absolute (http…) and already-prefixed URLs untouched. Use for plain <a>
+ *  links and any same-origin URL Next's basePath doesn't rewrite. */
+export function withBase(href: string): string {
+  return href.startsWith("/") ? `${BASE_PATH}${href}` : href;
+}
+
 const API_BASE = typeof window !== "undefined"
-  ? `${window.location.protocol}//${window.location.host}`
+  ? `${window.location.protocol}//${window.location.host}${BASE_PATH}`
   : "";
 
 export class ApiError extends Error {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AitoPanelConfig } from "@/lib/types";
+import { withBase } from "@/lib/api";
 
 interface AitoPanelProps {
   config: AitoPanelConfig;
@@ -170,7 +171,7 @@ export default function AitoPanel({ config, lastQuery, lastResponseMs }: AitoPan
               model file — Aito predicts directly from its index.
             </div>
             <div className="aito-links">
-              <a className="aito-link" href="/api/schema" target="_blank" rel="noreferrer">
+              <a className="aito-link" href={withBase("/api/schema")} target="_blank" rel="noreferrer">
                 <IconBook /> View live schema (JSON)
               </a>
               <a className="aito-link" href="https://aito.ai/docs/api/" target="_blank" rel="noreferrer">
@@ -184,7 +185,7 @@ export default function AitoPanel({ config, lastQuery, lastResponseMs }: AitoPan
               <div className="aito-section-title">Learn more</div>
               <div className="aito-links">
                 {config.links.map((link, i) => (
-                  <a key={i} className="aito-link" href={link.url} target="_blank" rel="noreferrer">
+                  <a key={i} className="aito-link" href={withBase(link.url)} target="_blank" rel="noreferrer">
                     {linkIcon(link.label)} {link.label}
                   </a>
                 ))}

@@ -5,7 +5,7 @@ import HnTopBar from "@/components/hn/HnTopBar";
 import Nav, { type NavRoute } from "@/components/shell/Nav";
 import AitoPanel from "@/components/shell/AitoPanel";
 import ErrorState from "@/components/shell/ErrorState";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, withBase } from "@/lib/api";
 import type { AitoPanelConfig } from "@/lib/types";
 import type {
   CategoryFeaturesResponse,
@@ -172,7 +172,7 @@ export default function FeaturesPage() {
           )}
 
           <div className="hn-footnote">
-            <a href="/">← back to predict</a>
+            <a href={withBase("/")}>← back to predict</a>
             {" | "}
             {lastResponseMs ?? "—"} ms · powered by{" "}
             <a href="https://aito.ai" target="_blank" rel="noopener noreferrer">
