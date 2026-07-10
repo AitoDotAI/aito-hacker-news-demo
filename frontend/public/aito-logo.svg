@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  Aito logo · white knowledge-tree + “ai” white, “to..” Sunset Purple  -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="380" height="160" viewBox="0 0 380 160" aria-labelledby="title">
+  <title>Aito logo</title>
+
+  <!-- ── knowledge-tree icon ─────────────────────────────────────────────── -->
+  <!--
+  <g fill="none" stroke="#FFFFFF" stroke-width="6"
+     stroke-linecap="round" stroke-linejoin="round" transform="translate(20,30)">
+    
+    <path d="M60 0 V85"/>
+    
+    <path d="M60 25 L45 15"/>
+    <path d="M60 25 L75 15"/>
+    <path d="M60 45 L35 30"/>
+    <path d="M60 45 L85 30"/>
+    <path d="M60 60 L30 50"/>
+    <path d="M60 60 L90 50"/>
+    
+    <path d="M60 85 L40 90"/>
+    <path d="M60 85 L80 90"/>
+    <path d="M60 85 L60 95"/>
+    
+    <circle cx="60" cy="0"  r="4"/>
+    <circle cx="45" cy="15" r="4"/>
+    <circle cx="75" cy="15" r="4"/>
+    <circle cx="35" cy="30" r="4"/>
+    <circle cx="85" cy="30" r="4"/>
+    <circle cx="30" cy="50" r="4"/>
+    <circle cx="90" cy="50" r="4"/>
+    <circle cx="80" cy="90" r="2"/>
+    <circle cx="40" cy="90" r="2"/>
+    <circle cx="60" cy="100" r="2"/>
+  </g>
+  -->
+
+  <!-- ── word-mark ───────────────────────────────────────────────────────── -->
+  <text x="20" y="135"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="150" font-weight="700"
+        fill="#FFFFFF">ai</text>
+
+  <text x="150" y="135"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="150" font-weight="700"
+        fill="#9B69FF">to</text>
+
+  <text x="290" y="135"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="150" font-weight="700"
+        fill="#37336B">..</text>
+
+  <!--
+  <text x="452" y="135"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="35" font-weight="1000"
+        fill="#9B69FF">a</text>
+
+  <text x="486" y="135"        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="35" font-weight="1000"
+        fill="#9B69FF">i</text>
+    -->
+</svg>

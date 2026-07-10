@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  Aito logo · white knowledge-tree + “ai” white, “to..” Sunset Purple  -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="128" height="128" viewBox="0 0 128 128" aria-labelledby="title">
+  <title>Aito icon</title>
+
+  <!-- ── word-mark ───────────────────────────────────────────────────────── -->
+  <text x="7" y="105"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="150" font-weight="700"
+        fill="#FFFFFF">a</text>
+
+  <text x="87" y="107"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="150" font-weight="700"
+        fill="#9B69FF">.</text>
+
+  
+
+</svg>

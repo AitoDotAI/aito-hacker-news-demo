@@ -1,0 +1,23 @@
+{
+  "schema": {
+    "hn_submissions": {
+      "type": "table",
+      "columns": {
+        "id":             { "type": "String", "nullable": false },
+        "title":          { "type": "Text",   "nullable": false, "analyzer": "english" },
+        "url":            { "type": "String", "nullable": true },
+        "domain":         { "type": "String", "nullable": false },
+        "score":          { "type": "Int",    "nullable": false },
+        "comments":       { "type": "Int",    "nullable": false },
+        "hour_utc":       { "type": "Int",    "nullable": false },
+        "day_of_week":    { "type": "Int",    "nullable": false },
+        "is_show_hn":     { "type": "Boolean","nullable": false },
+        "is_ask_hn":      { "type": "Boolean","nullable": false },
+        "title_length":   { "type": "Int",    "nullable": false },
+        "success_bucket": { "type": "String", "nullable": false },
+        "front_page":     { "type": "Boolean","nullable": false },
+        "created_at":     { "type": "String", "nullable": false }
+      }
+    }
+  }
+}

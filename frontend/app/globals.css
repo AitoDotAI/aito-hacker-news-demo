@@ -1,0 +1,1128 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --nav:#0c0f0a;--nav-hover:#1a1a0e;--nav-active:#232010;--nav-border:#1e1c0a;
+  --nav-text:#d0c088;--nav-text-active:#ffffff;--nav-accent:#d4a030;
+  --bg:#f8f6f0;--surface:#ffffff;--surface2:#f4f0e6;--surface3:#ede8d8;
+  --text:#12100a;--text2:#3a3418;--text3:#8a8060;
+  --gold:#6b4f0e;--gold-dark:#6b4f0e;--gold-light:#fdf0c8;--gold-mid:#d4a030;--gold-bright:#e8b830;
+  --amber:#6b5010;--amber-bg:#fef5d8;
+  --red:#7a1818;--red-bg:#fde8e8;
+  --blue:#182858;--blue-bg:#eaf0fc;
+  --green:#185228;--green-bg:#e8f5ea;
+  --border:#dedad0;--border2:#eae6d8;
+  --aito-bg:#0c0f41;--aito-surface:#151a58;--aito-border:#252c80;
+  --aito-accent:#12B5AD;--aito-purple:#5D50FF;--aito-text:#ffffff;--aito-text2:#f0f0f0;--aito-muted:#8090c0;
+}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+
+/* APP SHELL */
+.app{display:flex;height:100vh;overflow:hidden}
+.nav{width:230px;min-width:230px;background:var(--nav);display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--nav-border)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative}
+.aito-panel{width:268px;min-width:268px;background-color:var(--aito-bg);background-image:url('/aito-panel-bg.png');background-position:bottom center;background-size:cover;background-repeat:no-repeat;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid rgba(93,80,255,.2);z-index:1;transition:width .2s ease,min-width .2s ease}
+.aito-panel-scroll{flex:1;min-height:0;overflow-y:auto}
+.aito-panel.collapsed{width:0;min-width:0;border-left:none;overflow:hidden}
+.aito-panel-toggle{position:fixed;top:50%;right:0;transform:translateY(-50%);width:22px;height:64px;background:var(--aito-bg);border:1px solid rgba(93,80,255,.3);border-right:none;border-radius:6px 0 0 6px;cursor:pointer;color:#12B5AD;font-size:12px;z-index:1001;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:-2px 0 8px rgba(12,15,65,.3);transition:right .2s ease,background-color .15s}
+.aito-panel-toggle:hover{background:#37336B}
+.aito-panel-toggle.expanded{right:268px}
+
+/* NAV */
+.nav-logo{padding:22px 18px 18px;border-bottom:1px solid var(--nav-border)}
+.nav-logo-mark{display:flex;align-items:center;gap:8px}
+.nav-logo-icon{width:28px;height:28px;background:var(--gold-mid);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.nav-logo-text{font-size:16px;font-weight:600;color:#f5eecc;letter-spacing:-0.3px}
+.nav-logo-sub{font-size:11px;color:#a89848;margin-top:3px}
+.nav-section{padding:18px 14px 5px;font-size:9.5px;font-weight:600;color:#b8a860;letter-spacing:1.2px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 14px;margin:1px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--nav-text);transition:all .15s;user-select:none;text-decoration:none}
+.nav-item:hover{background:var(--nav-hover);color:#e0cc88}
+.nav-item.active{background:var(--nav-active);color:var(--nav-text-active);border-left:2px solid var(--nav-accent);padding-left:12px}
+.nav-badge{margin-left:auto;background:#2a2208;color:#d4a030;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;font-family:'IBM Plex Mono',monospace}
+.nav-badge.red{background:#2a1010;color:#e07070}
+.nav-user{margin-top:auto;padding:12px 8px;border-top:1px solid var(--nav-border)}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border2);padding:0 24px;height:54px;display:flex;align-items:center;gap:14px;flex-shrink:0;position:relative;z-index:50}
+/* Customer selector dropdown trigger — kept wide on desktop so the
+   tenant id + size + invoice count fit on one line. Mobile media
+   query collapses min-width so the selector can shrink with the row. */
+.customer-selector-btn{min-width:280px}
+.topbar-breadcrumb{font-size:11px;color:var(--text3);font-weight:500}
+.topbar-title{font-size:15px;font-weight:600;color:var(--text)}
+.topbar-sep{width:1px;height:20px;background:var(--border2)}
+.topbar-sub{font-size:12px;color:var(--text3)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.btn{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--gold-dark);color:#f5e8c0}
+.btn-primary:hover{background:var(--gold)}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--surface2)}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:22px 26px;display:flex;flex-direction:column;gap:18px;position:relative;z-index:2}
+/* Direct children must not shrink — otherwise they compress to fit
+   the visible area, and tall children (.card with a long table)
+   clip rows under their own overflow:hidden instead of triggering
+   .content's overflow-y:auto. */
+.content > *{flex-shrink:0}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+/* `min-width:0` lets the metric shrink below its content's intrinsic
+   width inside the grid (long labels otherwise force horizontal
+   overflow). `overflow:hidden` removed — the ::before stripe is
+   absolutely-positioned at top:0 with a fixed height and doesn't
+   escape; clipping content was hiding wrapped labels.  */
+.metric{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;position:relative;min-width:0;transition:border-color .15s,box-shadow .15s}
+.metric::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold-mid);opacity:.3}
+.metric.highlight::before{opacity:1}
+.metric[style*="cursor: pointer"]:hover{border-color:var(--gold-mid)}
+.metric.metric-active{border-color:var(--gold-dark);box-shadow:0 0 0 2px rgba(216,188,112,.3)}
+.metric.metric-active::before{opacity:1;background:var(--gold-dark)}
+
+/* DATA-FLOW TOUR */
+.tour-highlight{position:relative;outline:2px dashed var(--gold-dark);outline-offset:2px;border-radius:6px}
+.tour-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--gold-dark);color:#f5e8c0;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;margin-right:6px;vertical-align:middle}
+.tour-step{padding:8px 10px;border-left:3px solid var(--gold-dark);background:var(--surface2);border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.5;margin-bottom:6px}
+.tour-step strong{color:var(--gold-dark);margin-right:4px}
+/* Slightly smaller font + tighter letter-spacing so labels like
+   "MOST-OVERRIDDEN FIELD" or "OVERALL AUTOMATION" fit at the typical
+   4-column metric width. line-height + min-height keep card heights
+   even whether the label is one line ("Pending") or two ("Avg
+   confidence", "Match rate"). word-break covers compound labels with
+   no space ("MOST-OVERRIDDEN" wraps cleanly). */
+.metric-label{font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.4px;line-height:1.3;word-break:break-word;min-height:26px}
+.metric-value{font-size:24px;font-weight:600;color:var(--text);margin-top:5px;line-height:1;font-family:'IBM Plex Mono',monospace}
+.metric-sub{font-size:11px;margin-top:5px}
+.metric-up{color:var(--green)}
+.metric-down{color:var(--red)}
+.metric-neutral{color:var(--text3)}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;background:var(--surface)}
+.card-title{font-size:13px;font-weight:600;color:var(--text)}
+.card-hint{font-size:11px;color:var(--text3)}
+
+/* TABLE */
+.table{width:100%;border-collapse:collapse;table-layout:auto}
+/* Headers shrink letter-spacing slightly (was .6px → .4px) so labels
+   like "LAST REVIEWED" don't clip at common viewport widths. nowrap
+   stays so headers don't wrap mid-word, but small letter-spacing buys
+   the needed pixels. */
+.table th{padding:10px 16px;text-align:left;font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border2);background:var(--surface2);white-space:nowrap}
+.table td{padding:11px 16px;font-size:12.5px;color:var(--text);border-bottom:1px solid var(--border2);overflow:hidden;text-overflow:ellipsis;max-width:240px}
+.table tr:last-child td{border-bottom:none}
+.table tr:hover td{background:#faf6ec}
+.table td.mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
+/* Mono cells (invoice ids, amounts) shouldn't wrap at all — single
+   long token, no break opportunity. The max-width above is per-cell;
+   override here so the column auto-fits. */
+.table td.mono{max-width:none;white-space:nowrap}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge-gold{background:var(--gold-light);color:var(--gold-dark);border:1px solid #e0cc88}
+.badge-amber{background:var(--amber-bg);color:var(--amber);border:1px solid #f0d888}
+.badge-red{background:var(--red-bg);color:var(--red);border:1px solid #f0b8b8}
+.badge-blue{background:var(--blue-bg);color:var(--blue);border:1px solid #b0c8f0}
+.badge-green{background:var(--green-bg);color:var(--green);border:1px solid #a8d8b0}
+.badge-gray{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+
+/* PREDICTION BADGE */
+.pred-badge{background:var(--gold-light);color:var(--gold-dark);border:1px solid #d8bc70;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap;position:relative}
+.pred-badge:hover{background:#f0e0a0}
+
+/* ALTERNATIVES DROPDOWN */
+.alternatives-dropdown{position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:100;overflow:hidden}
+.alt-item{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font-size:12px;color:var(--text);transition:background .1s;border-bottom:1px solid var(--border2)}
+.alt-item:last-child{border-bottom:none}
+.alt-item:hover{background:var(--gold-light)}
+.alt-item.selected{background:var(--gold-light);font-weight:500}
+
+/* WHY TOOLTIP */
+.why-btn{width:18px;height:18px;border-radius:50%;background:var(--gold-mid);color:#fff;border:none;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;transition:background .15s}
+.why-btn:hover{background:var(--gold-bright)}
+.why-popup{background:var(--surface);border:1px solid var(--gold-mid);border-radius:10px;padding:14px 18px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:10000;max-width:calc(100vw - 40px)}
+.why-popup mark{background:#fff3a8;padding:0 2px;border-radius:2px}
+.why-popup::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--gold-mid)}
+.why-title{font-weight:600;color:var(--gold-dark);margin-bottom:2px;font-size:13px}
+.why-subtitle{font-size:10px;color:var(--text3);margin-bottom:10px}
+.why-factor{display:flex;align-items:center;gap:8px;padding:5px 8px;color:var(--text2);font-size:12px;background:var(--surface2);border-radius:4px;margin-bottom:4px}
+.why-factor-field{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold-dark);font-weight:500;min-width:90px}
+.why-factor-value{font-family:'IBM Plex Mono',monospace;font-size:11px;flex:1}
+.why-factor-lift{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);font-weight:500;margin-left:auto}
+.why-footer{font-size:10px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border2)}
+
+/* CONFIDENCE */
+.conf{display:flex;align-items:center;gap:7px}
+.conf-bar{width:52px;height:5px;border-radius:3px;background:var(--border2);overflow:hidden;flex-shrink:0}
+.conf-fill{height:100%;border-radius:3px}
+.conf-high{background:#6ab87a}
+.conf-mid{background:#d4a030}
+.conf-low{background:#d06060}
+.conf-val{font-size:11.5px;font-weight:500;color:var(--text2);font-family:'IBM Plex Mono',monospace;min-width:30px}
+
+/* FORM FILL */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.form-section{background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:20px}
+.form-section-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border2)}
+.field-group{margin-bottom:14px}
+.field-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field-input{width:100%;min-width:0;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);outline:none;transition:all .2s}
+.field-input:focus{border-color:var(--gold-mid)}
+.field-input.predicted{border-color:#d8bc70;background:var(--gold-light);color:var(--gold-dark);font-style:italic}
+.field-input.highlighted{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 2px rgba(245,158,11,.2)}
+.field-predicted-label{font-size:10px;color:var(--gold-dark);margin-top:3px;display:flex;align-items:center;gap:4px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* PAYMENT MATCHING */
+.match-item{padding:12px 20px;border-bottom:1px solid var(--border2);cursor:pointer;transition:background .1s}
+.match-item:hover{background:#faf6ec}
+.match-item.matched{background:#f5f8f0;border-left:3px solid #6ab87a}
+.match-item.suggested{background:var(--gold-light);border-left:3px solid var(--gold-mid)}
+.match-name{font-size:13px;font-weight:500;color:var(--text)}
+.match-detail{font-size:11.5px;color:var(--text3);margin-top:2px;font-family:'IBM Plex Mono',monospace}
+
+/* ANOMALY */
+.anomaly-row{padding:12px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:14px;transition:background .1s;cursor:pointer}
+.anomaly-row:hover{background:#faf6ec}
+.anomaly-row:last-child{border-bottom:none}
+.anomaly-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.anomaly-icon.high{background:var(--red-bg)}
+.anomaly-icon.medium{background:var(--amber-bg)}
+.anomaly-icon.low{background:var(--gold-light)}
+.anomaly-body{flex:1;min-width:0}
+.anomaly-title{font-size:13px;font-weight:500;color:var(--text)}
+.anomaly-sub{font-size:11.5px;color:var(--text3);margin-top:2px}
+.anomaly-amount{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:var(--text);text-align:right}
+
+/* RULE MINING */
+.rule-row{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border2);transition:background .1s}
+.rule-row:hover{background:#faf6ec}
+.rule-row:last-child{border-bottom:none}
+.rule-pattern{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--text);flex:1;min-width:0}
+.rule-arrow{font-size:11px;color:var(--text3);white-space:nowrap}
+.rule-support{font-size:12px;font-family:'IBM Plex Mono',monospace;min-width:44px;text-align:right}
+.rule-support.strong{color:var(--green)}
+.rule-support.medium{color:var(--amber)}
+.rule-support.weak{color:var(--red)}
+.rule-action{padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;border:none;font-weight:500;transition:all .15s;white-space:nowrap}
+.rule-promote{background:var(--gold-light);color:var(--gold-dark);border:1px solid #d8bc70}
+.rule-promote:hover{background:#f0e0a0}
+
+/* QUALITY */
+.quality-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.quality-card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden}
+.qc-header{padding:14px 18px 12px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between}
+.qc-title{font-size:13px;font-weight:600;color:var(--text)}
+.qc-body{padding:16px 18px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.bar-label{font-size:12px;color:var(--text2);min-width:130px}
+.bar-track{flex:1;height:7px;background:var(--border2);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s}
+.bar-fill-gold{background:var(--gold-mid)}
+.bar-fill-green{background:#6ab87a}
+.bar-fill-blue{background:#5a9ad8}
+.bar-val{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--text2);min-width:36px;text-align:right}
+
+/* AITO PANEL — mirrors aito-demo's ContextPanel widget */
+.aito-header{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid rgba(93,80,255,.2);background:rgba(12,15,65,.92);flex-shrink:0}
+.aito-logo-row{display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px}
+.aito-logo-img{height:24px;width:auto;display:block;flex-shrink:0}
+.aito-tagline{font-size:11px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.3px;white-space:nowrap}
+.aito-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;padding:12px 16px;border-bottom:1px solid rgba(93,80,255,.2);background:linear-gradient(135deg,rgba(55,51,107,.92) 0%,rgba(34,35,38,.92) 100%);flex-shrink:0}
+.aito-stat{display:flex;flex-direction:column;align-items:center;padding:5px 0}
+.aito-stat-val{font-size:12px;font-weight:700;color:#12B5AD;line-height:1;font-family:'IBM Plex Mono',monospace}
+.aito-stat-lbl{font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.aito-section{padding:14px 16px;border-bottom:1px solid rgba(93,80,255,.15);background:rgba(12,15,65,.88)}
+.aito-section-title{font-size:11px;font-weight:600;color:#9B69FF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.aito-desc{font-size:12.5px;color:#f0f0f0;line-height:1.6}
+.aito-endpoints{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.aito-tag{display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:#9B69FF;background:rgba(155,105,255,.15);border:1px solid rgba(155,105,255,.3);border-radius:3px;letter-spacing:.3px}
+.code-block{background:rgba(255,255,255,.07);border:1px solid rgba(93,80,255,.2);border-radius:4px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#f0f0f0;line-height:1.5;max-height:200px;overflow:auto;white-space:pre;margin:0}
+.aito-links{display:flex;flex-direction:column;gap:1px}
+.aito-link{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#f0f0f0;text-decoration:none;padding:3px 0;transition:color .15s}
+.aito-link:hover{color:#12B5AD}
+.aito-link svg{flex-shrink:0;width:11px;height:11px;color:rgba(255,255,255,.6);transition:color .15s}
+.aito-link:hover svg{color:#12B5AD}
+.cta-wrap{padding:14px 16px;border-top:1px solid rgba(93,80,255,.2);background:rgba(12,15,65,.92);flex-shrink:0}
+.cta-btn{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;padding:9px 14px;background:var(--aito-accent);color:#fff;border-radius:4px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;cursor:pointer;font-family:inherit;border:none;transition:all .2s}
+.cta-btn:hover{background:#0fa39b;transform:translateY(-1px);box-shadow:0 2px 12px rgba(18,181,173,.4)}
+.aito-note{margin-top:10px;padding:7px 9px;background:rgba(255,255,255,.05);border:1px solid rgba(93,80,255,.15);border-radius:4px;font-size:11px;color:rgba(240,240,240,.85);line-height:1.5}
+.aito-note strong{color:#fff}
+
+/* HEADLINE BANNER — desktop shows the full pitch; mobile collapses
+   to a one-line variant via the media query. */
+.headline-banner-long{display:inline}
+.headline-banner-short{display:none}
+
+/* MOBILE TOPBAR + FAB (hidden on desktop, shown via media query) */
+.nav-mobile-bar{display:none}
+.nav-overlay{display:none}
+.aito-fab{display:none}
+.aito-overlay{display:none}
+.aito-mobile-close{display:none}
+
+/* RESPONSIVE — mirrors aito-demo: nav becomes left drawer, panel becomes bottom sheet */
+@media (max-width: 768px){
+  body{overflow:auto}
+  .app{display:flex;flex-direction:column;height:auto;min-height:100vh;overflow:visible}
+  .main{height:auto;overflow:visible;flex:1}
+  .content{padding:14px;overflow:visible}
+
+  /* Mobile top bar — hamburger + brand */
+  .nav-mobile-bar{display:flex;align-items:center;gap:10px;height:48px;padding:0 12px;background:var(--nav);border-bottom:1px solid var(--nav-border);position:sticky;top:0;z-index:1050}
+  .nav-mobile-hamburger{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--gold-mid);cursor:pointer;border-radius:6px;padding:0}
+  .nav-mobile-hamburger:hover{background:var(--nav-hover)}
+  .nav-mobile-title{font-size:14px;font-weight:600;color:#f5eecc}
+
+  /* Off-canvas left drawer */
+  .nav{position:fixed;top:0;left:0;width:280px;max-width:85vw;height:100vh;min-width:0;z-index:1100;transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 16px rgba(0,0,0,.15)}
+  .nav.open{transform:translateX(0)}
+  .nav-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1099}
+
+  /* Right panel becomes a bottom sheet */
+  .aito-panel{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;min-width:0;height:auto;max-height:85vh;border-left:none;border-top:1px solid rgba(93,80,255,.2);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .25s ease;z-index:1100;box-shadow:0 -4px 24px rgba(12,15,65,.4)}
+  .aito-panel.open{transform:translateY(0)}
+  .aito-panel.collapsed{transform:translateY(100%)}
+  .aito-panel-toggle{display:none}
+
+  /* Floating "Aito info" button */
+  .aito-fab{display:flex;align-items:center;justify-content:center;position:fixed;right:16px;bottom:16px;width:48px;height:48px;border-radius:50%;background:var(--aito-bg);color:#12B5AD;border:1px solid rgba(93,80,255,.3);cursor:pointer;z-index:1050;box-shadow:0 4px 12px rgba(12,15,65,.3)}
+  .aito-fab-logo{width:26px;height:26px;object-fit:contain}
+  .aito-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:1099}
+  .aito-mobile-close{display:flex;align-items:center;justify-content:center;position:absolute;top:10px;right:10px;width:30px;height:30px;border:none;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border-radius:50%;cursor:pointer;z-index:2}
+  .aito-mobile-close:hover{background:rgba(255,255,255,.15);color:#fff}
+
+  /* Topbar slimmed — wide selector + multiple controls would push
+     the layout viewport beyond the device width on mobile, which
+     iOS Safari then "fixes" by zooming the whole page out. Hide
+     non-essential controls and let what's left shrink. */
+  .topbar{padding:0 14px;height:auto;min-height:48px;gap:6px;flex-wrap:wrap}
+  .topbar-breadcrumb{display:none}
+  .topbar-sep{display:none}
+  .topbar-title{font-size:14px}
+  .topbar-sub{display:none}
+  .topbar-right{margin-left:auto;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .customer-selector-btn{min-width:0;max-width:200px}
+  .customer-selector-btn span{font-size:11px}
+  /* "Live" status pill and the latency pill are analytical noise on
+     a phone — keep the topbar to one row of essentials. They reappear
+     on desktop. The "Data flow" toggle stays since the guided tour
+     references it. */
+  .topbar .live-dot{display:none}
+  /* LatencyBadge has inline display:inline-flex; override it. */
+  .latency-badge{display:none !important}
+
+  /* Headline banner: swap to the short one-line variant. */
+  .headline-banner{font-size:11.5px;padding:6px 36px 6px 12px;text-align:left;position:relative}
+  .headline-banner-long{display:none}
+  .headline-banner-short{display:inline}
+
+  /* HelpDrawer: desktop anchors to the AitoPanel's inner edge with
+     calc(100vw - 268px), which collapses to ~122px on a phone.
+     Override to a full-screen pane that covers content + bottom-sheet. */
+  .help-drawer{right:0 !important;left:0 !important;width:auto !important;max-width:none !important;border-left:none !important;z-index:1200 !important}
+
+  /* Help FAB: on desktop it dodges the 268px AitoPanel; on mobile
+     the panel is a hidden bottom sheet, so anchor to the right edge. */
+  .help-fab{right:16px !important;bottom:80px !important}
+
+  /* Aito panel code samples wrap instead of forcing horizontal scroll
+     when the bottom sheet is opened on a 390px screen. */
+  .code-block{white-space:pre-wrap;word-break:break-word}
+
+  /* Prediction Quality: collapse the 2-column configurator + 4/3-up
+     KPI rows into single columns so 260px+ left rails don't widen
+     the layout viewport on a 390px device. */
+  .qp-config-grid{grid-template-columns:1fr !important}
+  .qp-kpi-row-4{grid-template-columns:repeat(2,1fr) !important}
+  .qp-kpi-row-3{grid-template-columns:repeat(2,1fr) !important}
+
+  /* Content reflow */
+  .metrics{grid-template-columns:repeat(2,1fr);gap:8px}
+  .metric{padding:12px}
+  .metric-value{font-size:20px}
+  .form-grid{grid-template-columns:1fr;gap:14px}
+  .quality-grid{grid-template-columns:1fr}
+  .field-row{grid-template-columns:1fr}
+
+  /* Wide tables: horizontal scroll inside the card */
+  .card{overflow-x:auto}
+  .table{min-width:560px}
+
+  /* Page-level full-screen overlays should not be hidden behind nav */
+  .why-popup{max-width:calc(100vw - 24px)}
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* LOADING */
+.skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:16px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* LIVE INDICATOR */
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#2a8a3a;font-weight:600;padding:3px 10px;background:var(--green-bg);border:1px solid #a8d8b0;border-radius:12px}
+.live-dot::before{content:'';width:7px;height:7px;background:#6ab87a;border-radius:50%;box-shadow:0 0 4px #6ab87a}
+
+/* ──────────────────────────────────────────────────────────────────
+   Predictive HN — page styling
+   Visual conventions: orange #ff6600 topbar, beige #f6f6ef body,
+   Verdana, small (10pt-ish) type, flat (no radius/shadow), HN gray
+   #828282 secondary text, ▲ vote glyph, rank-numbered story list.
+   Brand mark is a custom "PH" square (not the YC "Y" trademark).
+   ────────────────────────────────────────────────────────────── */
+
+body{
+  font-family:Verdana,Geneva,sans-serif;
+  background:#f6f6ef;
+  color:#000;
+  font-size:10pt;
+  line-height:1.4;
+}
+
+.app{background:#f6f6ef}
+.nav{display:none !important}
+.main{background:#f6f6ef}
+
+a{color:#000;text-decoration:none}
+a:hover{text-decoration:underline}
+a:visited{color:#828282}
+
+/* ── HN topbar ──────────────────────────────────────────────── */
+.hn-topbar{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#ff6600;
+  padding:2px 6px;
+  border-bottom:2px solid #ff6600;
+  font-size:10pt;
+  color:#000;
+  height:auto;
+  min-height:24px;
+}
+.hn-topbar-mark{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:18px;height:18px;
+  background:#fff;
+  color:#ff6600;
+  font-weight:700;
+  font-family:Verdana,sans-serif;
+  font-size:10px;
+  border:1px solid #000;
+  letter-spacing:-0.5px;
+  text-decoration:none;
+  flex-shrink:0;
+}
+.hn-topbar-mark:hover{text-decoration:none}
+.hn-topbar-brand{
+  font-weight:700;
+  color:#000;
+  font-size:10pt;
+  white-space:nowrap;
+}
+.hn-topbar-brand:hover{text-decoration:none}
+.hn-topbar-nav{
+  display:flex;
+  gap:4px;
+  align-items:baseline;
+  font-size:10pt;
+}
+.hn-topbar-nav a{color:#000}
+.hn-topbar-nav a:visited{color:#000}
+.hn-topbar-sep{color:#000;margin:0 1px}
+.hn-topbar-subtitle{
+  color:#000;
+  font-size:9pt;
+  font-style:italic;
+  margin-left:6px;
+  opacity:.8;
+}
+.hn-topbar-right{
+  margin-left:auto;
+  display:flex;
+  gap:4px;
+  align-items:center;
+  font-size:10pt;
+}
+.hn-topbar-right a{color:#000}
+.hn-topbar-right a:visited{color:#000}
+
+/* The LatencyBadge ships its own pill style; tone it down to fit the
+   tight HN rail. */
+.latency-badge,.latency-pill{
+  font-size:9pt !important;
+  background:transparent !important;
+  border:none !important;
+  color:#000 !important;
+  padding:0 !important;
+}
+
+/* ── Page wrapper ───────────────────────────────────────────── */
+.content{
+  background:#f6f6ef;
+  padding:8px 10px 18px;
+  gap:14px;
+  max-width:none;
+}
+.hn-content{margin:0;max-width:none;width:auto}
+
+/* Strip the heavy template card shell — HN has no boxed cards. */
+.card,.hn-form-card,.hn-result-card,.hn-block{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  box-shadow:none;
+  padding:0;
+  margin:0;
+}
+.card-header{
+  background:transparent;
+  border:none;
+  padding:0 0 2px 0;
+}
+.card-title{
+  font-size:10pt;
+  font-weight:700;
+  color:#000;
+}
+.card-subtitle{
+  font-size:9pt;
+  color:#828282;
+  font-weight:400;
+}
+
+/* ── Submit form (HN-styled table layout) ───────────────────── */
+.hn-form-card{
+  background:#f6f6ef;
+  padding:6px 0 4px;
+}
+.hn-form-table{
+  border-collapse:collapse;
+  border-spacing:0;
+}
+.hn-form-table td{
+  padding:2px 4px;
+  vertical-align:top;
+  font-size:10pt;
+}
+.hn-form-label{
+  color:#000;
+  font-weight:400;
+  text-align:right;
+  width:60px;
+  padding-top:5px !important;
+}
+.hn-title-input,.hn-text-input{
+  font-family:Verdana,sans-serif;
+  font-size:10pt;
+  padding:2px 4px;
+  border:1px solid #828282;
+  border-radius:0;
+  background:#fff;
+  color:#000;
+}
+.hn-title-input{
+  width:480px;
+  max-width:90vw;
+  min-height:22px;
+  line-height:1.35;
+  resize:vertical;
+}
+.hn-text-input{width:auto;min-width:80px}
+input.hn-text-input{width:280px;max-width:60vw}
+select.hn-text-input{width:auto}
+.hn-title-input:focus,.hn-text-input:focus{
+  outline:none;
+  border-color:#ff6600;
+}
+
+.hn-submit-btn{
+  font-family:Verdana,sans-serif;
+  font-size:10pt;
+  padding:1px 10px;
+  background:#ebebeb;
+  color:#000;
+  border:1px solid #828282;
+  border-radius:0;
+  cursor:pointer;
+}
+.hn-submit-btn:hover:not(:disabled){background:#ff6600;color:#fff;border-color:#000}
+.hn-submit-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* "[now]" / "[custom]" toggle, example links — HN-style text buttons */
+.hn-link-btn{
+  background:none;
+  border:none;
+  color:#000;
+  font-family:Verdana,sans-serif;
+  font-size:10pt;
+  padding:0;
+  cursor:pointer;
+  text-decoration:none;
+}
+.hn-link-btn:hover{text-decoration:underline}
+
+/* Examples block under the form */
+.hn-examples{
+  padding:8px 4px 0 64px;
+  font-size:10pt;
+}
+.hn-section-label{
+  color:#828282;
+  font-size:9pt;
+  margin-bottom:2px;
+}
+.hn-examples-list{
+  list-style:decimal;
+  padding-left:24px;
+}
+.hn-examples-list li{padding:1px 0}
+
+/* ── Result: predicted story entry ─────────────────────────── */
+.hn-result-card{
+  background:#f6f6ef;
+  border-top:1px solid #828282;
+  padding:6px 0 0;
+}
+
+.hn-storylist{list-style:none;padding:0;margin:0}
+.hn-story{
+  display:grid;
+  grid-template-columns:22px 14px 1fr;
+  gap:0 4px;
+  padding:2px 0 6px;
+  font-size:10pt;
+}
+.hn-story-rank{
+  color:#828282;
+  text-align:right;
+  font-size:10pt;
+  padding-top:1px;
+}
+.hn-story-vote{
+  color:#828282;
+  font-size:9pt;
+  padding-top:2px;
+  cursor:default;
+}
+.hn-story-prediction .hn-story-vote{color:#ff6600;font-weight:700}
+.hn-story-body{min-width:0}
+.hn-story-titleline{font-size:10pt;line-height:1.35}
+.hn-story-title{color:#000;font-weight:400}
+.hn-story-domain{color:#828282;font-size:8pt;margin-left:2px}
+.hn-story-meta{
+  color:#828282;
+  font-size:7.5pt;
+  margin-top:1px;
+}
+.hn-story-meta strong{font-weight:700}
+
+/* The "predicted" pill — keep it text-like with a subtle orange
+   underline so it reads as part of the meta but draws the eye. */
+.hn-pred-pill{
+  color:#ff6600;
+  background:transparent;
+  font-size:8pt;
+  font-weight:700;
+  text-transform:lowercase;
+  padding:0 2px;
+  border-bottom:1px dotted #ff6600;
+}
+
+/* ── Section blocks ─────────────────────────────────────────── */
+.hn-block{
+  background:#f6f6ef;
+  padding:8px 0 4px;
+  border-top:1px solid #d0d0c4;
+}
+.hn-block-title{
+  font-size:10pt;
+  font-weight:700;
+  color:#000;
+  margin-bottom:4px;
+}
+.hn-meta-line{color:#828282;font-weight:400;font-size:9pt}
+
+/* ── Bucket distribution bar ─────────────────────────────────── */
+.bucket-bar{gap:4px}
+.bucket-bar-track{
+  height:18px;
+  border:1px solid #828282;
+  border-radius:0;
+  background:#fff;
+}
+.bucket-bar-seg{
+  font-family:Verdana,sans-serif;
+  font-size:9px;
+  color:#fff;
+  text-shadow:none;
+}
+.bucket-bar-pct{text-shadow:0 1px 1px rgba(0,0,0,.3)}
+.bucket-bar-legend{
+  font-size:9pt;
+  font-family:Verdana,sans-serif;
+  color:#828282;
+  gap:4px 12px;
+}
+.bucket-bar-legend-item{gap:4px}
+.bucket-bar-legend-dot{
+  width:9px;height:9px;
+  border-radius:0;
+  border:1px solid rgba(0,0,0,.2);
+}
+.bucket-bar-legend-label{color:#000;font-weight:400}
+.bucket-bar-legend-val{color:#828282}
+
+/* ── Similar past submissions (HN homepage analog) ─────────── */
+.similar-list{
+  list-style:none;
+  counter-reset:hn;
+  padding:0;
+  margin:0;
+  display:block;
+}
+.similar-empty{color:#828282;font-size:9pt;padding:4px 0}
+.similar-item{
+  display:grid;
+  grid-template-columns:22px 14px 1fr;
+  gap:0 4px;
+  padding:1px 0;
+  margin:0;
+  background:transparent;
+  border:none;
+  border-radius:0;
+}
+.similar-item:hover{background:transparent;border:none}
+.similar-item::before{
+  counter-increment:hn;
+  content:counter(hn) ".";
+  color:#828282;
+  font-size:10pt;
+  text-align:right;
+  padding-top:1px;
+  grid-column:1;
+  grid-row:1;
+}
+.similar-item::after{
+  content:"▲";
+  color:#828282;
+  font-size:9pt;
+  padding-top:2px;
+  grid-column:2;
+  grid-row:1;
+}
+.similar-title{
+  display:inline;
+  color:#000;
+  font-size:10pt;
+  font-weight:400;
+  grid-column:3;
+  grid-row:1;
+  margin:0;
+}
+.similar-title:visited{color:#828282}
+.similar-title:hover{color:#000;text-decoration:underline}
+.similar-meta{
+  grid-column:3;
+  grid-row:2;
+  font-size:7.5pt;
+  color:#828282;
+  margin:0;
+  gap:4px;
+  font-family:Verdana,sans-serif;
+}
+.similar-bucket{
+  padding:0 4px;
+  font-size:7pt;
+  font-weight:400;
+  text-transform:lowercase;
+  border-radius:0;
+  background:transparent !important;
+  border:1px solid currentColor;
+  letter-spacing:0;
+}
+.similar-score,.similar-comments,.similar-domain,.similar-ago{
+  color:#828282;
+  font-family:Verdana,sans-serif;
+}
+.similar-score::before{content:""}
+.similar-score::after{content:" points"}
+.similar-comments::after{content:" comments"}
+.similar-domain::before{content:"("}
+.similar-domain::after{content:")"}
+.similar-ago{margin-left:auto;color:#828282}
+
+/* ── Why factors ───────────────────────────────────────────── */
+.hn-why-list{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+}
+.hn-why-item{
+  font-size:9pt;
+  padding:1px 0;
+  border-bottom:1px dotted #d0d0c4;
+  color:#000;
+  display:flex;
+  align-items:baseline;
+  gap:4px;
+}
+.hn-why-item:last-child{border-bottom:none}
+.hn-why-field{
+  color:#828282;
+  font-size:9pt;
+  min-width:80px;
+}
+.hn-why-value{color:#000;flex:1}
+.hn-why-weight{color:#ff6600;font-weight:700;font-size:9pt}
+
+/* ── Footnote ──────────────────────────────────────────────── */
+.hn-footnote{
+  border-top:2px solid #ff6600;
+  padding:6px 4px;
+  margin-top:6px;
+  background:#f6f6ef;
+  color:#828282;
+  font-size:9pt;
+  text-align:center;
+}
+.hn-footnote a{color:#000}
+.hn-cta-link{color:#000 !important;font-weight:700;text-decoration:underline !important}
+.hn-cta-link:hover{color:#ff6600 !important}
+
+/* ── Error state (catch-all on the beige stage) ───────────── */
+.error-state{
+  background:#fff;
+  border:1px solid #ff6600;
+  padding:6px 8px;
+  font-size:10pt;
+}
+
+/* ── Mobile ────────────────────────────────────────────────── */
+@media (max-width: 700px){
+  .hn-topbar{flex-wrap:wrap}
+  .hn-topbar-nav{flex-wrap:wrap}
+  .hn-title-input{width:96vw}
+  input.hn-text-input{width:60vw}
+  .hn-examples{padding-left:30px}
+  .hn-story-meta{font-size:8.5pt}
+}
+
+/* ── /features page (top features per category) ────────────────── */
+
+.hn-topbar-active{font-weight:700;text-decoration:underline}
+
+.hn-feat-intro{
+  background:#f6f6ef;
+  padding:8px 0 6px;
+  border-bottom:1px solid #d0d0c4;
+}
+.hn-feat-intro code{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8.5pt;
+  background:#fff;
+  padding:0 3px;
+  border:1px solid #d0d0c4;
+}
+.hn-feat-loading{
+  padding:18px 0;
+  color:#828282;
+  font-size:10pt;
+  font-style:italic;
+}
+
+.hn-feat-buckets{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.hn-feat-bucket{
+  background:#f6f6ef;
+  padding:0;
+}
+.hn-feat-bucket-head{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  padding:4px 8px;
+  background:#ebebe2;
+  margin-bottom:6px;
+}
+.hn-feat-bucket-name{
+  font-weight:700;
+  font-size:10pt;
+  color:#000;
+}
+
+.hn-feat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px 12px;
+  padding:0 4px 4px;
+}
+.hn-feat-field{
+  min-width:0;
+}
+.hn-feat-field-label{
+  font-size:9pt;
+  color:#828282;
+  border-bottom:1px solid #d0d0c4;
+  padding-bottom:1px;
+  margin-bottom:2px;
+}
+.hn-feat-empty{
+  font-size:9pt;
+  color:#b0b0a0;
+  font-style:italic;
+  padding:2px 0;
+}
+.hn-feat-list{
+  list-style:none;
+  padding:0;
+  margin:0;
+  counter-reset:feat;
+}
+.hn-feat-row{
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  gap:6px;
+  align-items:baseline;
+  padding:1px 0;
+  font-size:9.5pt;
+  border-bottom:1px dotted #ebebe2;
+}
+.hn-feat-row:last-child{border-bottom:none}
+.hn-feat-row::before{
+  counter-increment:feat;
+  content:counter(feat) ".";
+  color:#828282;
+  font-size:8.5pt;
+  margin-right:2px;
+  display:none;
+}
+.hn-feat-value{
+  color:#000;
+  font-weight:400;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.hn-feat-lift{
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:700;
+  font-size:9pt;
+}
+.hn-feat-count{
+  color:#828282;
+  font-size:8pt;
+  font-family:Verdana,sans-serif;
+}
+
+@media (max-width: 900px){
+  .hn-feat-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width: 520px){
+  .hn-feat-grid{grid-template-columns:1fr}
+}
+
+/* ── Per-bucket distribution rows (with inline $why) ───────────── */
+
+.hn-bucket-rows{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  font-family:Verdana,sans-serif;
+}
+.hn-bucket-row{
+  display:grid;
+  grid-template-columns:48px 1fr 56px auto;
+  align-items:center;
+  gap:8px;
+  padding:2px 0;
+  font-size:9.5pt;
+}
+.hn-bucket-label{
+  color:#000;
+  font-weight:700;
+  text-transform:lowercase;
+  font-size:10pt;
+  letter-spacing:.2px;
+}
+.hn-bucket-bar-cell{
+  background:#ebebe2;
+  border:1px solid #d0d0c4;
+  height:14px;
+  position:relative;
+  overflow:hidden;
+}
+.hn-bucket-bar-fill{
+  display:block;
+  height:100%;
+  min-width:2px;
+  transition:width .25s ease;
+}
+.hn-bucket-pct{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9pt;
+  color:#000;
+  text-align:right;
+  font-weight:600;
+}
+.hn-bucket-whys{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px 6px;
+  align-items:center;
+  min-width:0;
+}
+.hn-bucket-why-empty{
+  color:#b0b0a0;
+  font-size:9pt;
+  font-style:italic;
+}
+.hn-bucket-why{
+  display:inline-flex;
+  align-items:baseline;
+  gap:3px;
+  padding:1px 5px;
+  background:#fff;
+  border:1px solid #d0d0c4;
+  font-size:8.5pt;
+  font-family:Verdana,sans-serif;
+  white-space:nowrap;
+}
+.hn-bucket-why.pos{
+  border-color:#ff6600;
+  background:#fff7f0;
+}
+.hn-bucket-why.neg{
+  border-color:#5a7a8a;
+  background:#f0f4f6;
+}
+.hn-bucket-why-val{
+  color:#000;
+  font-weight:600;
+}
+.hn-bucket-why-lift{
+  color:#ff6600;
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:700;
+}
+.hn-bucket-why.neg .hn-bucket-why-lift{color:#5a7a8a}
+.hn-bucket-why-field{
+  color:#828282;
+  font-size:8pt;
+  font-family:Verdana,sans-serif;
+}
+
+@media (max-width: 700px){
+  .hn-bucket-row{
+    grid-template-columns:42px 1fr 50px;
+    grid-template-rows:auto auto;
+  }
+  .hn-bucket-whys{
+    grid-column:1 / -1;
+    padding-left:50px;
+  }
+}
+
+/* ── Form: number inputs ───────────────────────────────────────── */
+
+.hn-text-input.hn-num-input{
+  width:64px;
+  text-align:right;
+  font-family:'IBM Plex Mono',monospace;
+}
+.hn-text-input[type="date"]{
+  width:130px;
+  font-family:Verdana,sans-serif;
+}
+
+/* ── Similar past submissions + distribution side-by-side ─────── */
+
+.hn-similar-row{
+  display:grid;
+  grid-template-columns:1fr 260px;
+  gap:16px;
+  align-items:flex-start;
+}
+.hn-similar-list-col{min-width:0}
+.hn-similar-dist-col{
+  border-left:1px solid #d0d0c4;
+  padding-left:12px;
+}
+
+.hn-simdist{font-family:Verdana,sans-serif}
+.hn-simdist-empty{color:#828282;font-style:italic;font-size:9pt}
+.hn-simdist-head{
+  font-size:9pt;
+  color:#828282;
+  margin-bottom:4px;
+}
+.hn-simdist-rows{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.hn-simdist-row{
+  display:grid;
+  grid-template-columns:38px 1fr 56px;
+  gap:6px;
+  align-items:center;
+  font-size:9pt;
+}
+.hn-simdist-label{
+  color:#000;
+  text-transform:lowercase;
+  font-size:9pt;
+  font-weight:600;
+}
+.hn-simdist-bar-cell{
+  background:#ebebe2;
+  border:1px solid #d0d0c4;
+  height:11px;
+  position:relative;
+  overflow:hidden;
+}
+.hn-simdist-bar-fill{
+  display:block;
+  height:100%;
+  min-width:0;
+}
+.hn-simdist-count{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8.5pt;
+  text-align:right;
+  color:#000;
+}
+.hn-simdist-pct{color:#828282;font-size:7.5pt}
+
+@media (max-width: 800px){
+  .hn-similar-row{
+    grid-template-columns:1fr;
+  }
+  .hn-similar-dist-col{
+    border-left:none;
+    border-top:1px solid #d0d0c4;
+    padding-left:0;
+    padding-top:8px;
+  }
+}

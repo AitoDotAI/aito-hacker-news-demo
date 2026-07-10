@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Teaser source — Aito Hacker News demo</title>
+  <style>
+    /* Designed at 1200×630 — `./do screenshot-teaser` captures this viewport. */
+    :root {
+      --bg-deep: #0c0f41;
+      --bg-card: #121830;
+      --border: #2a3258;
+      --text: #ffffff;
+      --text-muted: #9ba0c5;
+      --accent: #7c5cfc;
+      --accent-hot: #9b7dff;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      width: 1200px; height: 630px;
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    .frame {
+      width: 1200px; height: 630px;
+      padding: 64px 80px;
+      box-sizing: border-box;
+      display: flex; flex-direction: column; justify-content: space-between;
+      background: radial-gradient(circle at 80% 20%, rgba(124, 92, 252, 0.18) 0%, transparent 50%),
+                  var(--bg-deep);
+    }
+    .wordmark {
+      font-weight: 700; font-size: 36px; letter-spacing: -0.02em;
+    }
+    .wordmark .dot { color: var(--accent-hot); }
+    h1 {
+      margin: 0;
+      font-size: 84px; line-height: 1.05;
+      font-weight: 700; letter-spacing: -0.025em;
+      max-width: 920px;
+      background: linear-gradient(135deg, #fff 0%, var(--accent-hot) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .sub {
+      margin-top: 24px;
+      font-size: 30px; line-height: 1.35;
+      color: var(--text-muted);
+      max-width: 880px;
+    }
+    .footer {
+      display: flex; justify-content: space-between; align-items: end;
+    }
+    .url {
+      font-size: 24px; color: var(--text-muted);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    .badge {
+      background: var(--accent);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="wordmark">aito<span class="dot">..</span></div>
+
+    <div>
+      <h1>Your demo's headline goes here</h1>
+      <p class="sub">One-line value proposition. Two lines at most. Keep it concrete — name the thing the user will get.</p>
+    </div>
+
+    <div class="footer">
+      <div class="url">→ yourdemo.aito.ai</div>
+      <div class="badge">Powered by Aito</div>
+    </div>
+  </div>
+</body>
+</html>
