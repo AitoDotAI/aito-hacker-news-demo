@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Analytics from "@/components/shell/Analytics";
 
-const TITLE = "Can you predict the Hacker News front page?";
+const TITLE = "How well can you predict the Hacker News front page?";
 const DESCRIPTION =
-  "We scored 900 held-out submissions to find out. AUC 0.599 — better than " +
-  "a coin flip, nowhere near a crystal ball. The title barely matters (0.514); " +
-  "the domain is most of the signal (0.607). Test your own title against " +
-  "200,000 past submissions.";
+  "We scored 2,600 held-out submissions to find out. AUC 0.623 — real signal, " +
+  "a long way from clairvoyance. Title and domain each carry about as much " +
+  "information, and combining them adds almost nothing. Test your own title " +
+  "against 335,000 past submissions.";
 
 // basePath-aware: the demo is served from demos.aito.ai/hacker-news, so
 // absolute asset URLs need the prefix baked in at build time.
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
       url: "/og.png",
       width: 1200,
       height: 630,
-      alt: "Predicting the Hacker News front page: AUC 0.599 on 900 held-out submissions.",
+      alt: "Predicting the Hacker News front page: AUC 0.623 on 2,600 held-out submissions.",
     }],
   },
   twitter: {

@@ -370,19 +370,45 @@ def main(argv: list[str] | None = None) -> int:
                     help="skip the per-field ablation (faster)")
     ap.add_argument("--json", metavar="PATH",
                     help="also write the full report as JSON")
+    ap.add_argument(
+        "--holdout-start", metavar="YYYY-MM-DD",
+        help=(
+            "pin the holdout window start instead of deriving it from the "
+            "corpus cutoff. Use this to score the same submissions against "
+            "two different corpora — otherwise each run picks its own window "
+            "and the comparison is confounded."
+        ),
+    )
+    ap.add_argument("--holdout-end", metavar="YYYY-MM-DD",
+                    help="pin the holdout window end (see --holdout-start)")
     args = ap.parse_args(argv)
+
+    def _pin(s: str) -> datetime:
+        return datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     cfg = load_config()
     aito = AitoClient(cfg)
-    print(f"Aito: {cfg.aito_url}")
+    # Print what we actually queried, env included — a report that claims
+    # to measure production while pointing at a branch is worse than none.
+    print(f"Aito: {cfg.api_base}  (env: {cfg.aito_env or 'master'})")
 
     oldest, newest, rows = corpus_bounds(aito)
-    start = newest + timedelta(days=HOLDOUT_GAP_DAYS)
-    end = datetime.now(timezone.utc) - timedelta(days=SETTLE_DAYS)
+    start = (_pin(args.holdout_start) if args.holdout_start
+             else newest + timedelta(days=HOLDOUT_GAP_DAYS))
+    end = (_pin(args.holdout_end) if args.holdout_end
+           else datetime.now(timezone.utc) - timedelta(days=SETTLE_DAYS))
     if start >= end:
         raise SystemExit(
             f"Corpus ends {newest:%Y-%m-%d}, which leaves no settled holdout "
             f"window. Nothing to evaluate against."
+        )
+    # A pinned window is only a valid holdout if the corpus genuinely ends
+    # before it — otherwise we would be scoring rows the index has seen.
+    if start < newest + timedelta(days=HOLDOUT_GAP_DAYS):
+        raise SystemExit(
+            f"Holdout starts {start:%Y-%m-%d} but the corpus runs to "
+            f"{newest:%Y-%m-%d}. That overlaps the index — the result would "
+            f"be a memorisation score, not a prediction score."
         )
 
     print(f"corpus {rows:,} rows ending {newest:%Y-%m-%d}; "
@@ -404,7 +430,8 @@ def main(argv: list[str] | None = None) -> int:
             "rows": rows,
             "oldest": oldest.isoformat(),
             "newest": newest.isoformat(),
-            "url": cfg.aito_url,
+            "url": cfg.api_base,
+            "env": cfg.aito_env or "master",
         },
         "holdout": {
             "n": len(posts),

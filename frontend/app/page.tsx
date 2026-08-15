@@ -20,7 +20,7 @@ import {
 const PANEL_CONFIG: AitoPanelConfig = {
   operation: "POST /api/v1/_predict + /_search",
   stats: [
-    { value: "200k", label: "submissions indexed" },
+    { value: "335k", label: "submissions indexed" },
     { value: "3", label: "Aito calls / prediction" },
     { value: "0", label: "ML pipelines" },
   ],
@@ -31,7 +31,8 @@ const PANEL_CONFIG: AitoPanelConfig = {
     "&ldquo;rust&rdquo; should count for more than matching on &ldquo;why&rdquo;. Token rarity comes from cached " +
     "<code>_search</code> counts, so a cold token costs one extra call and nothing thereafter. " +
     "No training step and no model file — Aito infers directly from its index. The front-page number is " +
-    "calibrated against a 900-submission holdout, because the raw output runs optimistic above 20%; both are shown.",
+    "checked against a 2,600-submission holdout; on this corpus the raw output is already close to calibrated, " +
+    "so the correction is small. Both figures are shown.",
   query: JSON.stringify(
     {
       method: "POST",
@@ -352,9 +353,10 @@ export default function Home() {
                       <div className="hn-story-meta hn-meta-line">
                         Aito&rsquo;s raw output was{" "}
                         {data.headline.raw_front_page_pct.toFixed(1)}%; shown
-                        {" "}calibrated against a held-out sample, where raw
-                        {" "}predictions above 20% came true about half as often
-                        {" "}as claimed. <a href="#accuracy">How accurate is this?</a>
+                        {" "}calibrated against 2,600 held-out submissions, which
+                        {" "}on this corpus barely moves it — the raw numbers
+                        {" "}measure up well below ~25%.{" "}
+                        <a href="#accuracy">How accurate is this?</a>
                       </div>
                     </div>
                   </li>
@@ -393,20 +395,23 @@ export default function Home() {
               <section id="accuracy" className="hn-block hn-accuracy">
                 <div className="hn-block-title">how accurate is this?</div>
                 <p>
-                  Not very, and we measured it rather than guessing.
-                  Scoring 900 submissions posted <em>after</em> the corpus
+                  Somewhat, and we measured it rather than guessing.
+                  Scoring 2,600 submissions posted <em>after</em> the corpus
                   ends — so the index has never seen them — the front-page
-                  prediction gets <strong>AUC 0.599</strong>, where 0.5 is a
+                  prediction gets <strong>AUC 0.623</strong>, where 0.5 is a
                   coin flip. The top-decile predictions reach the front page{" "}
-                  <strong>1.9x</strong> as often as a typical submission, so it
-                  is not nothing. It is also not a crystal ball.
+                  <strong>1.9x</strong> as often as a typical submission, and
+                  the probabilities are close to honest: submissions we call
+                  12% land at 12.7%, and 24% land at 25.0%. Above roughly 25%
+                  we have too few measurements to promise anything.
                 </p>
                 <p>
-                  The uncomfortable part: <strong>the title barely matters.</strong>{" "}
-                  Predicting from the title alone scores AUC 0.514 — noise.
-                  Predicting from the <em>domain</em>{" "}alone scores 0.607, which
-                  beats the full model. Whatever signal exists here is mostly
-                  &ldquo;which site are you linking to,&rdquo; not how you worded it.
+                  The interesting part is what <em>doesn&rsquo;t</em> stack.
+                  Title alone scores 0.617; domain alone scores 0.619; both
+                  together score <strong>0.623</strong>. Two signals that look
+                  independent are telling us nearly the same thing, so
+                  combining them buys almost nothing. Posting hour (0.535) and
+                  title length (0.517) are close to noise.
                 </p>
                 <p className="hn-meta-line">
                   Reproduce it yourself:{" "}
@@ -418,9 +423,12 @@ export default function Home() {
                   >
                     the repo
                   </a>
-                  . The corpus is 200,000 submissions from 2023-05-25 to
-                  2024-01-12, so the &ldquo;similar past submissions&rdquo; above
-                  are drawn from that window.
+                  . The corpus is 335,368 submissions from 2025-06-01 to
+                  2026-05-31, so the &ldquo;similar past submissions&rdquo; above
+                  are drawn from that window. Scoring the same 2,600 against our
+                  previous 2023 corpus gave 0.594 — recency is worth about 0.03
+                  of AUC, which is why the corpus gets rebuilt rather than left
+                  to rot.
                 </p>
               </section>
 

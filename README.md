@@ -8,28 +8,40 @@ Type a candidate title, pick a domain and a posting hour/day, and Aito predicts 
 
 ## How accurate is it?
 
-Barely, and we measured it rather than guessing. `scripts/evaluate.py` holds out submissions posted *after* the corpus ends — so the index has never seen them — and scores them through the demo's own predict path:
+Somewhat, and we measured it rather than guessing. `scripts/evaluate.py` holds out submissions posted *after* the corpus ends — so the index has never seen them — and scores them through the demo's own predict path. On 2,600 held-out submissions (2026-06-07 → 2026-08-01, base rate 6.9%):
 
 | | AUC | top-decile lift |
 |---|---|---|
-| **as shipped (all fields)** | **0.599** | 1.9x |
-| title only | 0.514 | 1.3x |
-| domain only | 0.607 | 2.4x |
-| title length only | 0.481 | 1.3x |
-| posting hour only | 0.531 | 0.9x |
+| **as shipped (all fields)** | **0.623** | 1.86x |
+| title only | 0.617 | 1.58x |
+| domain only | 0.619 | 2.29x |
+| title + domain | 0.623 | 1.78x |
+| posting hour only | 0.535 | 1.02x |
+| title length only | 0.517 | 0.85x |
 
-0.5 is a coin flip. So the demo's headline feature — *type a title, get front-page odds* — is measurably not doing much: **title wording is noise (0.514), and the domain alone (0.607) outperforms the full model.** The raw probabilities also run optimistic above ~20%, so `src/calibration.py` maps them onto observed frequencies from the holdout before the UI shows them.
+0.5 is a coin flip, so this is real signal and a long way from clairvoyance. The probabilities themselves hold up well: submissions we call 12% land at 12.7%, 24% land at 25.0%. Above ~25% there are too few measurements to promise anything, so `src/calibration.py` bounds the tail.
 
-We consider that a more interesting result than a demo that pretends otherwise. HN outcomes depend heavily on who is awake, what else is on the front page, and early-comment velocity — none of which is knowable from a draft title.
+The result we didn't expect is that **the signals don't stack**. Title alone scores 0.617, domain alone 0.619, both together 0.623. Two features that look independent are carrying nearly the same information, so combining them buys almost nothing. Posting hour and title length are close to noise.
+
+**Recency matters.** Scoring the identical 2,600 submissions against our previous corpus (200k rows ending 2024-01-12) gives 0.594 versus 0.623 — about 0.03 of AUC for being ~2 years fresher. That is the argument for rebuilding the corpus rather than letting it rot.
 
 Reproduce it:
 
 ```bash
-uv run python -m scripts.evaluate                # 700 held-out submissions
-uv run python -m scripts.evaluate --n 900 --json data/eval-report.json
+uv run python -m scripts.evaluate                      # 700 held-out submissions
+uv run python -m scripts.evaluate --n 2600 --json data/eval-report-v2.json
+
+# Compare two corpora fairly — pin the window so both score the same posts
+AITO_ENV=v2 uv run python -m scripts.evaluate \
+    --n 2600 --holdout-start 2026-06-07 --holdout-end 2026-08-01
+
+# Regenerate the calibration constants from a report
+uv run python -m scripts.fit_calibration data/eval-report-v2.json
 ```
 
-`data/eval-report.json` holds the run the numbers above come from.
+`data/eval-report-v2.json` holds the run the numbers above come from; `data/eval-report-v1-samewindow.json` is the old corpus on the same window.
+
+A caution from our own history: an earlier 900-submission run put the shipped model at 0.522 and title-only at 0.553, which pointed at the opposite conclusion. With ~48 positives, that was noise. Use `--n 2000` or more before believing a difference.
 
 ## How it works
 
