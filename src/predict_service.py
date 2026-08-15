@@ -34,6 +34,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from src.aito_client import AitoClient
+from src.calibration import (
+    BASE_RATE,
+    band as calibration_band,
+    calibrate,
+    relative_to_base,
+)
 
 TABLE = "hn_submissions"
 
@@ -410,12 +416,22 @@ def predict_hn(aito: AitoClient, req: PredictRequest) -> PredictResponse:
     estimated_score = _expected_score(bucket_probs)
     estimated_comments = _expected_comments(similar, bucket_probs)
 
+    calibrated = calibrate(front_page_pct / 100.0)
+
     return PredictResponse(
         input=req,
         derived=derived,
         headline={
-            "front_page_pct": round(front_page_pct, 1),
-            "label": _label_for_front_page(front_page_pct),
+            # `front_page_pct` stays the calibrated number, since that's
+            # what any consumer should actually use. The raw Aito output
+            # is kept alongside it so the UI (and the AitoPanel) can show
+            # its work rather than quietly rewriting the model.
+            "front_page_pct": round(calibrated * 100.0, 1),
+            "raw_front_page_pct": round(front_page_pct, 1),
+            "base_rate_pct": round(BASE_RATE * 100.0, 1),
+            "relative_to_base": round(relative_to_base(calibrated), 2),
+            "band": calibration_band(calibrated),
+            "label": _label_for_front_page(calibrated * 100.0),
         },
         bucket_distribution=[
             BucketProbability(
@@ -452,10 +468,10 @@ def _per_bucket_why(predict_response: dict) -> dict[str, list[WhyFactor]]:
 
 
 def _label_for_front_page(pct: float) -> str:
-    if pct >= 60:
-        return "Strong chance"
-    if pct >= 35:
-        return "Decent chance"
-    if pct >= 15:
-        return "Long shot"
-    return "Unlikely"
+    """Human label for the calibrated probability.
+
+    Phrased relative to the base rate rather than in absolute terms.
+    "Unlikely" is true of ~92% of all HN submissions, so saying it about
+    a specific one carries no information; "better odds than most" does.
+    """
+    return calibration_band(pct / 100.0).capitalize()

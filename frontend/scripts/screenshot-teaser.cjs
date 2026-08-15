@@ -11,7 +11,13 @@ const fs = require("fs");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SRC = path.join(REPO_ROOT, "assets", "teaser.html");
-const OUT = path.join(REPO_ROOT, "assets", "teaser.png");
+// Two destinations from one source: the landing-page thumbnail and the
+// og:image the page itself points at. They were drifting when maintained
+// separately, and a stale OG card is invisible until someone shares a link.
+const OUTS = [
+  path.join(REPO_ROOT, "assets", "teaser.png"),
+  path.join(REPO_ROOT, "frontend", "public", "og.png"),
+];
 
 async function main() {
   if (!fs.existsSync(SRC)) {
@@ -40,11 +46,13 @@ async function main() {
   });
   const page = await ctx.newPage();
   await page.goto(`file://${SRC}`, { waitUntil: "networkidle" });
-  await page.screenshot({ path: OUT, type: "png", omitBackground: false });
+  for (const out of OUTS) {
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    await page.screenshot({ path: out, type: "png", omitBackground: false });
+    const stat = fs.statSync(out);
+    console.log(`✓ ${path.relative(REPO_ROOT, out)} (${stat.size} B, 1200×630)`);
+  }
   await browser.close();
-
-  const stat = fs.statSync(OUT);
-  console.log(`✓ ${path.relative(REPO_ROOT, OUT)} (${stat.size} B, 1200×630)`);
 }
 
 main().catch((e) => {
