@@ -20,16 +20,18 @@ import {
 const PANEL_CONFIG: AitoPanelConfig = {
   operation: "POST /api/v1/_predict + /_search",
   stats: [
-    { value: "5", label: "outcome buckets" },
+    { value: "200k", label: "submissions indexed" },
     { value: "3", label: "Aito calls / prediction" },
     { value: "0", label: "ML pipelines" },
   ],
   description:
     "Each prediction fans out to three Aito calls: <code>_predict success_bucket</code> for the 5-class distribution, " +
-    "<code>_predict front_page</code> for the binary headline, and <code>_search</code> for similar past submissions " +
-    "(re-ranked by token overlap). No training step and no model file — Aito infers directly from its index. " +
-    "The front-page number is then calibrated against a 900-submission holdout, because the raw output runs " +
-    "optimistic above 20%; both figures are shown.",
+    "<code>_predict front_page</code> for the binary headline, and <code>_search</code> for similar past submissions. " +
+    "The search runs on the input's <em>rarest</em> tokens and the hits are re-ranked by IDF weight — matching on " +
+    "&ldquo;rust&rdquo; should count for more than matching on &ldquo;why&rdquo;. Token rarity comes from cached " +
+    "<code>_search</code> counts, so a cold token costs one extra call and nothing thereafter. " +
+    "No training step and no model file — Aito infers directly from its index. The front-page number is " +
+    "calibrated against a 900-submission holdout, because the raw output runs optimistic above 20%; both are shown.",
   query: JSON.stringify(
     {
       method: "POST",
