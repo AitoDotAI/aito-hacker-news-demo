@@ -12,7 +12,9 @@ pkgs.mkShell {
     pkgs.uv
 
     # Node / Next.js frontend
-    pkgs.nodejs_20
+    # nodejs_20 reached EOL and is marked insecure in nixpkgs; 22 is the
+    # nearest supported LTS and satisfies Next.js 16 (requires >= 20.9).
+    pkgs.nodejs_22
     pkgs.corepack
 
     # Playwright system dependencies (screenshot scripts in frontend/scripts/)
@@ -35,8 +37,22 @@ pkgs.mkShell {
     fi
 
     # Use nix-managed Playwright browsers rather than `npx playwright install`.
+    # NOTE: frontend/package.json pins playwright-core to the same version as
+    # pkgs.playwright-driver (${pkgs.playwright-driver.version}). Playwright resolves browsers by
+    # revision, so if these drift, launches fail with "Executable doesn't exist".
+    # Bumping one means bumping the other.
     export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
     export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+    # The screenshot scripts (frontend/scripts/*.cjs) default to /usr/bin/chromium,
+    # which doesn't exist on NixOS. Point them at the nix-provided binary.
+    for _chrome in "${pkgs.playwright-driver.browsers}"/chromium-*/chrome-linux64/chrome; do
+      if [ -x "$_chrome" ]; then
+        export CHROME_PATH="$_chrome"
+        break
+      fi
+    done
+    unset _chrome
 
     # Load .env if present (gitignored; holds AITO_API_KEY etc.)
     if [ -f .env ]; then
