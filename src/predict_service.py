@@ -436,20 +436,30 @@ def _walk_why(node: Any, out: list[tuple[str, Any, float]]) -> None:
 
 
 def _iter_propositions(prop: dict):
-    """Yield (field, value) pairs from a $why proposition, flattening $and.
-    Unwraps Aito's value envelopes (`$has`, `$numeric`) so the UI sees the
-    raw token/number, not the operator wrapper we sent in `where`.
+    """Yield (field, value) pairs from a $why proposition, flattening
+    conjunctions. Unwraps Aito's value envelopes (`$has`, `$numeric`,
+    `$match`) so the UI sees the raw token/number, not the operator
+    wrapper.
+
+    Both API encodings are handled: v1 groups ANDed propositions under
+    `$and` and wraps values in `$has`; v2 (Rep2) groups under `$group` and
+    encodes text matches as `$match`. Missing either is silent — a
+    `$group` yields no conditions at all, and an unhandled wrapper renders
+    the raw `{'$match': ...}` dict into the UI.
     """
     if not isinstance(prop, dict):
         return
-    if "$and" in prop:
-        for sub in prop["$and"]:
-            yield from _iter_propositions(sub)
-        return
+    for conjunction in ("$and", "$group"):
+        if conjunction in prop:
+            for sub in prop[conjunction] or []:
+                yield from _iter_propositions(sub)
+            return
     for field, cond in prop.items():
         if isinstance(cond, dict):
             if "$has" in cond:
                 yield field, cond["$has"]
+            elif "$match" in cond:
+                yield field, cond["$match"]
             elif "$numeric" in cond:
                 # Aito returns these as floats even for Int columns; coerce.
                 v = cond["$numeric"]
@@ -458,7 +468,10 @@ def _iter_propositions(prop: dict):
                 except (TypeError, ValueError):
                     yield field, v
             else:
-                yield field, cond
+                # An unrecognised single-operator wrapper still yields its
+                # value rather than a raw dict in the UI.
+                operator_values = [v for k, v in cond.items() if k.startswith("$")]
+                yield field, operator_values[0] if len(operator_values) == 1 else cond
         else:
             yield field, cond
 
