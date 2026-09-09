@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <title>Teaser source — Aito Hacker News demo</title>
   <style>
-    /* Designed at 1200×630 — `./do screenshot-teaser` captures this viewport. */
+    /* Designed at 1200×630 — `./do screenshot-teaser` captures this viewport
+       into assets/teaser.png (landing thumbnail) and frontend/public/og.png
+       (social card). Keep the two in sync by re-running the script. */
     :root {
       --bg-deep: #0c0f41;
       --bg-card: #121830;
@@ -13,6 +15,7 @@
       --text-muted: #9ba0c5;
       --accent: #7c5cfc;
       --accent-hot: #9b7dff;
+      --hn: #ff6600;
     }
     html, body {
       margin: 0; padding: 0;
@@ -24,46 +27,76 @@
     }
     .frame {
       width: 1200px; height: 630px;
-      padding: 64px 80px;
+      padding: 56px 76px;
       box-sizing: border-box;
       display: flex; flex-direction: column; justify-content: space-between;
-      background: radial-gradient(circle at 80% 20%, rgba(124, 92, 252, 0.18) 0%, transparent 50%),
+      background: radial-gradient(circle at 82% 18%, rgba(124, 92, 252, 0.20) 0%, transparent 52%),
                   var(--bg-deep);
     }
     .wordmark {
-      font-weight: 700; font-size: 36px; letter-spacing: -0.02em;
+      font-weight: 700; font-size: 32px; letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 14px;
     }
     .wordmark .dot { color: var(--accent-hot); }
+    .wordmark .tag {
+      font-size: 15px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.12em;
+      border-left: 1px solid var(--border); padding-left: 14px;
+    }
     h1 {
       margin: 0;
-      font-size: 84px; line-height: 1.05;
-      font-weight: 700; letter-spacing: -0.025em;
-      max-width: 920px;
+      font-size: 72px; line-height: 1.04;
+      font-weight: 700; letter-spacing: -0.03em;
+      max-width: 1000px;
       background: linear-gradient(135deg, #fff 0%, var(--accent-hot) 100%);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
     .sub {
-      margin-top: 24px;
-      font-size: 30px; line-height: 1.35;
+      margin-top: 20px;
+      font-size: 25px; line-height: 1.38;
       color: var(--text-muted);
-      max-width: 880px;
+      max-width: 900px;
     }
+    .sub b { color: #d9dcf2; font-weight: 600; }
+
+    /* The evidence row — this is what makes the card worth sharing. */
+    .stats { display: flex; gap: 14px; margin-top: 28px; }
+    .stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 22px;
+      min-width: 186px;
+    }
+    .stat .val {
+      font-size: 38px; font-weight: 700; letter-spacing: -0.02em;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    .stat .lbl {
+      margin-top: 4px;
+      font-size: 14px; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .stat.dim .val { color: #6f76a8; }
+    .stat.hot { border-color: rgba(255, 102, 0, 0.45); }
+    .stat.hot .val { color: var(--hn); }
+
     .footer {
       display: flex; justify-content: space-between; align-items: end;
     }
     .url {
-      font-size: 24px; color: var(--text-muted);
+      font-size: 22px; color: var(--text-muted);
       font-family: ui-monospace, "SF Mono", Menlo, monospace;
     }
     .badge {
       background: var(--accent);
       color: white;
-      padding: 12px 24px;
+      padding: 11px 22px;
       border-radius: 999px;
       font-weight: 600;
-      font-size: 18px;
+      font-size: 17px;
       letter-spacing: 0.03em;
       text-transform: uppercase;
     }
@@ -71,16 +104,38 @@
 </head>
 <body>
   <div class="frame">
-    <div class="wordmark">aito<span class="dot">..</span></div>
+    <div class="wordmark">
+      aito<span class="dot">..</span>
+      <span class="tag">Predictive database</span>
+    </div>
 
     <div>
-      <h1>Your demo's headline goes here</h1>
-      <p class="sub">One-line value proposition. Two lines at most. Keep it concrete — name the thing the user will get.</p>
+      <h1>How well can you predict the HN front page?</h1>
+      <p class="sub">
+        We scored <b>2,600 held-out submissions</b> against 335,000 past ones,
+        and published the number. Real signal &mdash; and a long way from
+        clairvoyance.
+      </p>
+
+      <div class="stats">
+        <div class="stat hot">
+          <div class="val">0.623</div>
+          <div class="lbl">AUC &mdash; 0.5 is a coin flip</div>
+        </div>
+        <div class="stat">
+          <div class="val">1.86&times;</div>
+          <div class="lbl">top-decile hit rate</div>
+        </div>
+        <div class="stat dim">
+          <div class="val">2,600</div>
+          <div class="lbl">held-out submissions</div>
+        </div>
+      </div>
     </div>
 
     <div class="footer">
-      <div class="url">→ yourdemo.aito.ai</div>
-      <div class="badge">Powered by Aito</div>
+      <div class="url">&rarr; demos.aito.ai/hacker-news</div>
+      <div class="badge">Check our work</div>
     </div>
   </div>
 </body>

@@ -60,8 +60,12 @@ export default function SimilarPosts({ posts }: Props) {
             >
               {p.success_bucket}
             </span>
-            <span className="similar-score">{p.score.toLocaleString()} pts</span>
-            <span className="similar-comments">{p.comments} comments</span>
+            <span className="similar-score">
+              {p.score.toLocaleString()} {p.score === 1 ? "point" : "points"}
+            </span>
+            <span className="similar-comments">
+              {p.comments} {p.comments === 1 ? "comment" : "comments"}
+            </span>
             <span className="similar-domain">{p.domain}</span>
             {p.created_at && <span className="similar-ago">{fmtAgo(p.created_at)}</span>}
           </div>

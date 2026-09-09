@@ -101,6 +101,14 @@ def main() -> int:
         action="store_true",
         help="assume the table already exists; just upload data",
     )
+    ap.add_argument(
+        "--allow-master",
+        action="store_true",
+        help=(
+            "permit destructive writes against the master env. Without this, "
+            "--recreate refuses to run unless AITO_ENV names a branch."
+        ),
+    )
     args = ap.parse_args()
 
     schema_path = Path(args.schema)
@@ -111,10 +119,23 @@ def main() -> int:
         ap.error(f"data not found: {data_path}")
 
     cfg = load_config()
-    print(f"Target Aito: {cfg.aito_url}")
+
+    # Production serves master. Dropping a table there takes the live demo
+    # down, so make it an explicit choice rather than a default.
+    on_master = cfg.aito_env is None
+    if on_master and args.recreate and not args.allow_master:
+        ap.error(
+            "refusing to --recreate on the master env, which production "
+            "serves. Set AITO_ENV=<branch> to target a branch (create one "
+            "with POST /api/v2/_envs), or pass --allow-master if you really "
+            "mean to rebuild production's table."
+        )
+
+    print(f"Target Aito: {cfg.api_base}")
+    print(f"Env:         {cfg.aito_env or 'master (production)'}")
     print(f"Source:      {data_path} ({data_path.stat().st_size / 1e6:.1f} MB)")
 
-    with _client(cfg.aito_url, cfg.aito_key) as client:
+    with _client(cfg.api_base, cfg.aito_key) as client:
         if not args.skip_create:
             if table_exists(client, args.table):
                 if args.recreate:

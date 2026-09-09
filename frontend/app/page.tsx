@@ -20,14 +20,19 @@ import {
 const PANEL_CONFIG: AitoPanelConfig = {
   operation: "POST /api/v1/_predict + /_search",
   stats: [
-    { value: "5", label: "outcome buckets" },
+    { value: "335k", label: "submissions indexed" },
     { value: "3", label: "Aito calls / prediction" },
     { value: "0", label: "ML pipelines" },
   ],
   description:
     "Each prediction fans out to three Aito calls: <code>_predict success_bucket</code> for the 5-class distribution, " +
-    "<code>_predict front_page</code> for the binary headline, and <code>_search</code> for similar past submissions " +
-    "(re-ranked by token overlap). Estimated upvotes come from the modal bucket; the long-tail expectation is shown beneath.",
+    "<code>_predict front_page</code> for the binary headline, and <code>_search</code> for similar past submissions. " +
+    "The search runs on the input's <em>rarest</em> tokens and the hits are re-ranked by IDF weight — matching on " +
+    "&ldquo;rust&rdquo; should count for more than matching on &ldquo;why&rdquo;. Token rarity comes from cached " +
+    "<code>_search</code> counts, so a cold token costs one extra call and nothing thereafter. " +
+    "No training step and no model file — Aito infers directly from its index. The front-page number is " +
+    "checked against a 2,600-submission holdout; on this corpus the raw output is already close to calibrated, " +
+    "so the correction is small. Both figures are shown.",
   query: JSON.stringify(
     {
       method: "POST",
@@ -331,37 +336,38 @@ export default function Home() {
                       </div>
                       <div className="hn-story-meta">
                         <span className="hn-pred-pill">
-                          predicted: <strong>{data.headline.front_page_pct.toFixed(0)}%</strong> front page
+                          {data.headline.band} odds
                         </span>
+                        {" "}|{" "}
+                        <strong>{data.headline.front_page_pct.toFixed(1)}%</strong>
+                        {" "}front page vs{" "}
+                        {data.headline.base_rate_pct.toFixed(1)}% for a typical
+                        {" "}submission ({data.headline.relative_to_base.toFixed(2)}x)
                         {" "}|{" "}
                         ~{Math.round(data.estimated_score.most_likely_midpoint)} points
                         {" "}|{" "}
                         ~{Math.round(data.estimated_comments)} comments
                         {" "}|{" "}
                         {clock}
-                        {" "}|{" "}
-                        <span className="hn-meta-line">
-                          modal: {data.estimated_score.most_likely_bucket}
-                        </span>
-                        {" "}|{" "}
-                        <span className="hn-meta-line">
-                          avg w/ tail: {Math.round(data.estimated_score.expected)} pts
-                        </span>
+                      </div>
+                      <div className="hn-story-meta hn-meta-line">
+                        Aito&rsquo;s raw output was{" "}
+                        {data.headline.raw_front_page_pct.toFixed(1)}%; shown
+                        {" "}calibrated against 2,600 held-out submissions, which
+                        {" "}on this corpus barely moves it — the raw numbers
+                        {" "}measure up well below ~25%.{" "}
+                        <a href="#accuracy">How accurate is this?</a>
                       </div>
                     </div>
                   </li>
                 </ol>
               </section>
 
-              {/* Outcome distribution as a compact widget */}
-              <section className="hn-block">
-                <div className="hn-block-title">outcome distribution</div>
-                <BucketBar distribution={data.bucket_distribution} />
-              </section>
-
-              {/* Similar past submissions — list with bucket-distribution
-                  summary side-by-side so the eye gets both "what" and
-                  "how those did" in one glance. */}
+              {/* The evidence, first. These are real past submissions
+                  sharing the input's words, and their spread is the
+                  honest answer to "what will happen to my post" — a
+                  wide one. The prediction above is a summary of this,
+                  not a separate source of truth. */}
               <section id="similar" className="hn-block">
                 <div className="hn-block-title">
                   similar past submissions
@@ -377,6 +383,55 @@ export default function Home() {
                 </div>
               </section>
 
+              {/* Outcome distribution as a compact widget */}
+              <section className="hn-block">
+                <div className="hn-block-title">
+                  outcome distribution
+                  <span className="hn-meta-line"> — what Aito infers from the corpus</span>
+                </div>
+                <BucketBar distribution={data.bucket_distribution} />
+              </section>
+
+              <section id="accuracy" className="hn-block hn-accuracy">
+                <div className="hn-block-title">how accurate is this?</div>
+                <p>
+                  Somewhat, and we measured it rather than guessing.
+                  Scoring 2,600 submissions posted <em>after</em> the corpus
+                  ends — so the index has never seen them — the front-page
+                  prediction gets <strong>AUC 0.623</strong>, where 0.5 is a
+                  coin flip. The top-decile predictions reach the front page{" "}
+                  <strong>1.9x</strong> as often as a typical submission, and
+                  the probabilities are close to honest: submissions we call
+                  12% land at 12.7%, and 24% land at 25.0%. Above roughly 25%
+                  we have too few measurements to promise anything.
+                </p>
+                <p>
+                  The interesting part is what <em>doesn&rsquo;t</em> stack.
+                  Title alone scores 0.617; domain alone scores 0.619; both
+                  together score <strong>0.623</strong>. Two signals that look
+                  independent are telling us nearly the same thing, so
+                  combining them buys almost nothing. Posting hour (0.535) and
+                  title length (0.517) are close to noise.
+                </p>
+                <p className="hn-meta-line">
+                  Reproduce it yourself:{" "}
+                  <code>uv run python -m scripts.evaluate</code> in{" "}
+                  <a
+                    href="https://github.com/AitoDotAI/aito-hacker-news-demo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    the repo
+                  </a>
+                  . The corpus is 335,368 submissions from 2025-06-01 to
+                  2026-05-31, so the &ldquo;similar past submissions&rdquo; above
+                  are drawn from that window. Scoring the same 2,600 against our
+                  previous 2023 corpus gave 0.594 — recency is worth about 0.03
+                  of AUC, which is why the corpus gets rebuilt rather than left
+                  to rot.
+                </p>
+              </section>
+
               <div className="hn-footnote">
                 <a href="#predict">predict another</a> {" | "}
                 {lastResponseMs ?? "—"} ms via {" "}
@@ -385,12 +440,11 @@ export default function Home() {
                 </a>
                 {" | "}
                 <a
-                  className="hn-cta-link"
                   href="https://aito.ai/?utm_source=hn-predictor&utm_medium=demo&utm_campaign=show_hn"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  try it on your own data →
+                  what is Aito?
                 </a>
               </div>
             </>

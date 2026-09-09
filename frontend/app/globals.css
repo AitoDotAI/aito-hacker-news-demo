@@ -653,6 +653,25 @@ select.hn-text-input{width:auto}
 }
 .hn-meta-line{color:#828282;font-weight:400;font-size:9pt}
 
+/* The "how accurate is this" block. Deliberately plain body text rather
+   than a warning callout — it's the demo's argument, not a disclaimer
+   to be dismissed. */
+.hn-accuracy p{
+  font-size:9.5pt;
+  line-height:1.5;
+  max-width:64ch;
+  margin:0 0 8px;
+  color:#3c3c3c;
+}
+.hn-accuracy p:last-child{margin-bottom:4px}
+.hn-accuracy strong{color:#000}
+.hn-accuracy code{
+  background:#efefe4;
+  border:1px solid #dcdcd0;
+  padding:0 3px;
+  font-size:9pt;
+}
+
 /* ── Bucket distribution bar ─────────────────────────────────── */
 .bucket-bar{gap:4px}
 .bucket-bar-track{
@@ -738,6 +757,11 @@ select.hn-text-input{width:auto}
   font-size:7.5pt;
   color:#828282;
   margin:0;
+  /* `gap` and .similar-ago's margin-left:auto both assume flex; without
+     this the spans ran together as "3 points4 comments(self)". */
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
   gap:4px;
   font-family:Verdana,sans-serif;
 }
@@ -755,9 +779,9 @@ select.hn-text-input{width:auto}
   color:#828282;
   font-family:Verdana,sans-serif;
 }
-.similar-score::before{content:""}
-.similar-score::after{content:" points"}
-.similar-comments::after{content:" comments"}
+/* Units for score/comments are rendered in SimilarPosts.tsx (which can
+   handle "1 point" vs "2 points"); adding them here too printed them
+   twice — "3 pts points0 comments comments". */
 .similar-domain::before{content:"("}
 .similar-domain::after{content:")"}
 .similar-ago{margin-left:auto;color:#828282}
@@ -814,10 +838,19 @@ select.hn-text-input{width:auto}
 @media (max-width: 700px){
   .hn-topbar{flex-wrap:wrap}
   .hn-topbar-nav{flex-wrap:wrap}
-  .hn-title-input{width:96vw}
-  input.hn-text-input{width:60vw}
+  /* 96vw for the input plus the 60px label column and cell padding
+     added up to wider than the viewport, so the whole page scrolled
+     sideways. Size against the table instead of the viewport. */
+  .hn-form-table{width:100%;table-layout:fixed}
+  .hn-form-label{width:52px}
+  .hn-title-input,input.hn-text-input{width:100%;max-width:100%}
+  select.hn-text-input{max-width:100%}
   .hn-examples{padding-left:30px}
   .hn-story-meta{font-size:8.5pt}
+  /* Long domains ("bfnightly.bracketproductions.com") are unbreakable
+     flex items otherwise. */
+  .similar-meta{min-width:0}
+  .similar-domain{overflow-wrap:anywhere}
 }
 
 /* ── /features page (top features per category) ────────────────── */

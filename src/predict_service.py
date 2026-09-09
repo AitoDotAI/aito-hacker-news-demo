@@ -27,13 +27,22 @@ full bucket distribution and the actual spread of similar posts.
 
 from __future__ import annotations
 
+import math
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from src.aito_client import AitoClient
+from src.calibration import (
+    BASE_RATE,
+    band as calibration_band,
+    calibrate,
+    relative_to_base,
+)
 
 TABLE = "hn_submissions"
 
@@ -60,7 +69,10 @@ BUCKET_MIDPOINTS: dict[str, float] = {
 }
 
 SIMILAR_LIMIT = 8
-SIMILAR_FETCH = 60  # how many we ask Aito for before re-ranking client-side
+SIMILAR_FETCH = 200  # how many we ask Aito for before re-ranking client-side
+# How many of the input's tokens go into the candidate search. Capped at
+# the rarest few — see the comment in predict_hn().
+SEARCH_TOKENS = 5
 
 # Stop tokens we don't want to drive similarity:
 #  - English stopwords ("the", "a") that Aito's analyzer mostly handles but
@@ -80,6 +92,84 @@ def _tokenize(text: str) -> list[str]:
         t for t in re.findall(r"[A-Za-z0-9]+", text.lower())
         if len(t) > 2 and t not in _STOP
     ]
+
+
+# ── Token rarity (IDF) ───────────────────────────────────────────────
+#
+# Plain token-overlap ranking treats every shared word alike, so "Why I
+# Left Rust" retrieved "Why We're Bad at CSS" and "Why Git for Data?" —
+# all matching on "why". Since the similar-posts list is the demo's main
+# evidence, matching on the *rare* shared words is what makes it
+# convincing.
+#
+# Document frequencies are a property of a fixed corpus, so we look each
+# token up once and keep it. Steady state is nearly free: the common
+# tokens that dominate ranking are exactly the ones that get cached first.
+
+_DF_CACHE: dict[tuple[str, str], int] = {}
+_CORPUS_SIZE: dict[str, int] = {}
+_DF_LOCK = threading.Lock()
+
+# Tokens we could not measure fall back to this weight — mid-range, so an
+# unknown token neither dominates nor vanishes.
+_DEFAULT_IDF = 3.0
+_DF_WORKERS = 8
+
+
+def _corpus_size(aito: AitoClient) -> int:
+    key = aito.base_url
+    cached = _CORPUS_SIZE.get(key)
+    if cached is not None:
+        return cached
+    try:
+        total = int(aito.search(table=TABLE, where={}, limit=0).get("total") or 0)
+    except Exception:  # noqa: BLE001 — ranking must not break the prediction
+        return 0
+    with _DF_LOCK:
+        _CORPUS_SIZE[key] = total
+    return total
+
+
+def _document_frequency(aito: AitoClient, token: str) -> int | None:
+    """How many submissions contain `token` in their title. None on failure."""
+    key = (aito.base_url, token)
+    cached = _DF_CACHE.get(key)
+    if cached is not None:
+        return cached
+    try:
+        r = aito.search(
+            table=TABLE, where={"title": {"$match": token}}, limit=0,
+        )
+        df = int(r.get("total") or 0)
+    except Exception:  # noqa: BLE001
+        return None
+    with _DF_LOCK:
+        _DF_CACHE[key] = df
+    return df
+
+
+def _idf_weights(aito: AitoClient, tokens: list[str]) -> dict[str, float]:
+    """{token → idf}. Uncached tokens are fetched concurrently so a cold
+    cache costs one round trip rather than one per token."""
+    n = _corpus_size(aito)
+    if not n:
+        return {t: _DEFAULT_IDF for t in tokens}
+
+    missing = [t for t in tokens if (aito.base_url, t) not in _DF_CACHE]
+    if missing:
+        with ThreadPoolExecutor(max_workers=min(_DF_WORKERS, len(missing))) as ex:
+            list(ex.map(lambda t: _document_frequency(aito, t), missing))
+
+    weights: dict[str, float] = {}
+    for t in tokens:
+        df = _DF_CACHE.get((aito.base_url, t))
+        if df is None:
+            weights[t] = _DEFAULT_IDF
+        else:
+            # Smoothed IDF, floored at 0 so a token appearing in nearly
+            # every row contributes nothing rather than going negative.
+            weights[t] = max(0.0, math.log((n + 1) / (df + 1)))
+    return weights
 
 
 # ── Request / response models ────────────────────────────────────────
@@ -213,10 +303,15 @@ def _similar_posts(
     search_response: dict,
     input_tokens: set[str],
     limit: int,
+    idf: dict[str, float] | None = None,
 ) -> list[SimilarPost]:
-    """Convert hits → SimilarPost, then re-rank by token-overlap with the
-    input. Aito's $similarity collapses to a constant across $or hits, so
-    we do the ranking client-side: overlap_count / sqrt(title_token_count)."""
+    """Convert hits → SimilarPost, then re-rank against the input.
+
+    Aito's $similarity collapses to a constant across $or hits, so ranking
+    happens client-side. Shared tokens are weighted by IDF, so agreeing on
+    "rust" counts for much more than agreeing on "why" — without it the
+    list fills with posts that share only a filler word.
+    """
     rows: list[tuple[float, SimilarPost]] = []
     for hit in search_response.get("hits", []):
         title = hit.get("title")
@@ -225,12 +320,21 @@ def _similar_posts(
         title_tokens = set(_tokenize(title))
         if not title_tokens:
             continue
-        overlap = len(input_tokens & title_tokens)
-        if overlap == 0:
+        shared = input_tokens & title_tokens
+        if not shared:
             continue
-        # Jaccard-ish: rewards posts that share many input tokens while
-        # mildly penalising long-title posts that match by sheer coverage.
-        rank = overlap / (len(title_tokens) ** 0.5)
+        weight = sum((idf or {}).get(t, 1.0) for t in shared) if idf else len(shared)
+        if weight <= 0:
+            continue
+        # Coordination: how much of the input this title actually covers.
+        # Without it, one rare shared word outranks two topical ones —
+        # "Is history written by the winners?" beat every Rust post for
+        # the query "…Postgres client written in Rust", because "written"
+        # happens to be rarer than "rust". Squared, so covering two of
+        # three query words beats covering one decisively.
+        coord = (len(shared) / len(input_tokens)) ** 2 if input_tokens else 0.0
+        # Mildly penalise long titles that match by sheer coverage.
+        rank = weight * coord / (len(title_tokens) ** 0.5)
         rows.append((
             rank,
             SimilarPost(
@@ -332,20 +436,30 @@ def _walk_why(node: Any, out: list[tuple[str, Any, float]]) -> None:
 
 
 def _iter_propositions(prop: dict):
-    """Yield (field, value) pairs from a $why proposition, flattening $and.
-    Unwraps Aito's value envelopes (`$has`, `$numeric`) so the UI sees the
-    raw token/number, not the operator wrapper we sent in `where`.
+    """Yield (field, value) pairs from a $why proposition, flattening
+    conjunctions. Unwraps Aito's value envelopes (`$has`, `$numeric`,
+    `$match`) so the UI sees the raw token/number, not the operator
+    wrapper.
+
+    Both API encodings are handled: v1 groups ANDed propositions under
+    `$and` and wraps values in `$has`; v2 (Rep2) groups under `$group` and
+    encodes text matches as `$match`. Missing either is silent — a
+    `$group` yields no conditions at all, and an unhandled wrapper renders
+    the raw `{'$match': ...}` dict into the UI.
     """
     if not isinstance(prop, dict):
         return
-    if "$and" in prop:
-        for sub in prop["$and"]:
-            yield from _iter_propositions(sub)
-        return
+    for conjunction in ("$and", "$group"):
+        if conjunction in prop:
+            for sub in prop[conjunction] or []:
+                yield from _iter_propositions(sub)
+            return
     for field, cond in prop.items():
         if isinstance(cond, dict):
             if "$has" in cond:
                 yield field, cond["$has"]
+            elif "$match" in cond:
+                yield field, cond["$match"]
             elif "$numeric" in cond:
                 # Aito returns these as floats even for Int columns; coerce.
                 v = cond["$numeric"]
@@ -354,7 +468,10 @@ def _iter_propositions(prop: dict):
                 except (TypeError, ValueError):
                     yield field, v
             else:
-                yield field, cond
+                # An unrecognised single-operator wrapper still yields its
+                # value rather than a raw dict in the UI.
+                operator_values = [v for k, v in cond.items() if k.startswith("$")]
+                yield field, operator_values[0] if len(operator_values) == 1 else cond
         else:
             yield field, cond
 
@@ -378,20 +495,31 @@ def predict_hn(aito: AitoClient, req: PredictRequest) -> PredictResponse:
         predict_field="front_page",
         limit=2,
     )
-    # Similar past submissions: tokenise the title and search with $or
-    # across tokens, then re-rank in Python by token overlap.
+    # Similar past submissions: tokenise the title, search with $or across
+    # tokens, then re-rank in Python.
     #
     # Why not Aito's $similarity orderBy? With $or across tokens Aito
     # returns the same similarity score for every hit (each only proves
     # the disjunction with one match), so we can't actually rank with it.
-    # Token-overlap is good enough for "same words, different outcomes."
+    #
+    # Which tokens go into the $or matters more than it looks. Aito returns
+    # an arbitrary `limit` slice of the matches, and a disjunction
+    # containing a common word like "why" matches tens of thousands of
+    # rows — so the slice we get back is close to random and the re-rank
+    # has nothing good to choose from. Searching on the *rarest* tokens
+    # gives a candidate pool that is already topical.
     tokens = _tokenize(req.title)
     sim_limit = req.similar_limit if req.similar_limit is not None else SIMILAR_LIMIT
-    # Always over-fetch by ~7x so the Python-side overlap re-rank has
-    # headroom, capped at SIMILAR_FETCH to keep the Aito call reasonable.
-    fetch_n = min(SIMILAR_FETCH, max(sim_limit * 7, SIMILAR_FETCH))
+    idf = _idf_weights(aito, tokens[:12]) if tokens else {}
+
     if tokens:
-        token_clauses = [{"title": {"$match": t}} for t in tokens[:12]]
+        ranked_tokens = sorted(
+            tokens[:12], key=lambda t: idf.get(t, _DEFAULT_IDF), reverse=True
+        )
+        search_tokens = ranked_tokens[:SEARCH_TOKENS]
+        # Over-fetch so the re-rank has headroom.
+        fetch_n = min(SIMILAR_FETCH, max(sim_limit * 12, SIMILAR_FETCH))
+        token_clauses = [{"title": {"$match": t}} for t in search_tokens]
         where_search: dict[str, Any] = (
             token_clauses[0] if len(token_clauses) == 1 else {"$or": token_clauses}
         )
@@ -401,21 +529,32 @@ def predict_hn(aito: AitoClient, req: PredictRequest) -> PredictResponse:
             limit=fetch_n,
         )
     else:
+        fetch_n = 0
         similar_resp = {"hits": []}
 
     bucket_probs = _bucket_probabilities(bucket_resp)
     bucket_factors = _per_bucket_why(bucket_resp)
-    similar = _similar_posts(similar_resp, set(tokens), limit=sim_limit)
+    similar = _similar_posts(similar_resp, set(tokens), limit=sim_limit, idf=idf)
     front_page_pct = _front_page_pct(fp_resp)
     estimated_score = _expected_score(bucket_probs)
     estimated_comments = _expected_comments(similar, bucket_probs)
+
+    calibrated = calibrate(front_page_pct / 100.0)
 
     return PredictResponse(
         input=req,
         derived=derived,
         headline={
-            "front_page_pct": round(front_page_pct, 1),
-            "label": _label_for_front_page(front_page_pct),
+            # `front_page_pct` stays the calibrated number, since that's
+            # what any consumer should actually use. The raw Aito output
+            # is kept alongside it so the UI (and the AitoPanel) can show
+            # its work rather than quietly rewriting the model.
+            "front_page_pct": round(calibrated * 100.0, 1),
+            "raw_front_page_pct": round(front_page_pct, 1),
+            "base_rate_pct": round(BASE_RATE * 100.0, 1),
+            "relative_to_base": round(relative_to_base(calibrated), 2),
+            "band": calibration_band(calibrated),
+            "label": _label_for_front_page(calibrated * 100.0),
         },
         bucket_distribution=[
             BucketProbability(
@@ -452,10 +591,10 @@ def _per_bucket_why(predict_response: dict) -> dict[str, list[WhyFactor]]:
 
 
 def _label_for_front_page(pct: float) -> str:
-    if pct >= 60:
-        return "Strong chance"
-    if pct >= 35:
-        return "Decent chance"
-    if pct >= 15:
-        return "Long shot"
-    return "Unlikely"
+    """Human label for the calibrated probability.
+
+    Phrased relative to the base rate rather than in absolute terms.
+    "Unlikely" is true of ~92% of all HN submissions, so saying it about
+    a specific one carries no information; "better odds than most" does.
+    """
+    return calibration_band(pct / 100.0).capitalize()

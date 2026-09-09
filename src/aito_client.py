@@ -66,7 +66,10 @@ class AitoClient:
     """Synchronous Aito client. One instance per process; thread-safe via httpx."""
 
     def __init__(self, config: Config) -> None:
-        self._url = config.aito_url
+        # api_base folds in the named env (if any), so every call below
+        # lands in the right branch without each caller thinking about it.
+        self._url = config.api_base
+        self._env = config.aito_env
         self._headers = {
             "x-api-key": config.aito_key,
             "content-type": "application/json",
@@ -83,6 +86,11 @@ class AitoClient:
     @property
     def base_url(self) -> str:
         return self._url
+
+    @property
+    def env(self) -> str | None:
+        """Named env being queried, or None for master."""
+        return self._env
 
     def close(self) -> None:
         self._http.close()

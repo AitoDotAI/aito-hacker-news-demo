@@ -39,6 +39,26 @@ export default function WhyCards({
   const lifts = patterns.map((p) => p.lift ?? 1);
   const hover = onHoverFactor ?? (() => {});
 
+  // The lifts are marginal per-pattern factors; Aito's posterior is NOT
+  // their naive product. With weak evidence the product does land on the
+  // model's probability, but once the evidence is strong it overshoots —
+  // measured on a sibling demo: 35% × 1.5 × 2.9 × 1.7 × 1.8 = 434% for a
+  // class whose actual $p is 98%. Printing "= 98%" there is an
+  // arithmetically false equation, the same demo-effect class as
+  // "0% × 0.7 = 58%".
+  //
+  // Surface the normalising constant as its own term so the chain
+  // reconciles and stays checkable by eye, rather than softening the
+  // equals sign. Mirrors the grocery demo (aito-demo InvoicingPage).
+  // Derive it from the ROUNDED figures actually on screen, not the raw
+  // ones — otherwise multiplying what the reader sees still misses the
+  // stated result, which defeats the point of showing the term at all.
+  const shownBase = Math.round(baseP * 100) / 100;
+  const shownLifts = lifts.map((l) => Number(l.toFixed(1)));
+  const chainProduct = shownLifts.reduce((acc, l) => acc * l, shownBase);
+  const normalizer = chainProduct > 0 ? confidence / chainProduct : 1;
+  const showNormalizer = Math.abs(normalizer - 1) > 0.1;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {base && (
@@ -171,8 +191,23 @@ export default function WhyCards({
           {lifts.map((lift, i) => (
             <span key={i}> × {lift.toFixed(1)}</span>
           ))}
+          {showNormalizer && (
+            <span style={{ color: "var(--text3)" }}> × {normalizer.toFixed(2)}</span>
+          )}
           <span style={{ color: "var(--text3)" }}> = </span>
           <span style={{ fontWeight: 700, color: "var(--gold-dark)" }}>{(confidence * 100).toFixed(0)}%</span>
+          {showNormalizer && (
+            <div style={{
+              flexBasis: "100%", textAlign: "center", marginTop: 4,
+              fontSize: 10, color: "var(--text3)", fontFamily: "inherit",
+              lineHeight: 1.45,
+            }}>
+              <strong>× {normalizer.toFixed(2)}</strong>{" "}
+              is Aito&apos;s
+              normalising constant — evidence that overlaps is not counted
+              twice, so the result is not the raw product of the lifts.
+            </div>
+          )}
         </div>
       )}
     </div>

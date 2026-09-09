@@ -49,7 +49,15 @@ export interface PredictHnResponse {
     title_length: number;
   };
   headline: {
+    /** Calibrated against a held-out sample — see src/calibration.py. */
     front_page_pct: number;
+    /** Aito's uncorrected output, shown alongside so we're not hiding it. */
+    raw_front_page_pct: number;
+    /** Front-page rate of a typical submission, for comparison. */
+    base_rate_pct: number;
+    /** front_page_pct / base_rate_pct. 1.0 = indistinguishable from average. */
+    relative_to_base: number;
+    band: string;
     label: string;
   };
   bucket_distribution: BucketProbability[];
@@ -59,23 +67,26 @@ export interface PredictHnResponse {
   aito_calls: Array<{ op: string; [k: string]: unknown }>;
 }
 
-// Example titles shown on first load. One known-flop, one known-mid,
-// one known-viral pattern.
+// Example titles shown on first load. The hints describe the *shape* of
+// each title, not a promised outcome — the holdout evaluation found title
+// wording carries almost no signal (AUC 0.514), so claiming "historically
+// viral" for a phrasing would be asserting something we measured to be
+// false. Try them and compare; that disagreement is the point of the demo.
 export const EXAMPLE_TITLES: { label: string; title: string; hint: string }[] = [
   {
     label: "Show HN classic",
     title: "Show HN: A minimal Postgres client written in Rust",
-    hint: "Show HN format, technical, generic — usually mid-bucket",
+    hint: "the canonical Show HN shape",
   },
   {
     label: "Hot topic",
     title: "OpenAI announces new model with breakthrough reasoning",
-    hint: "Big-name + hype keywords — historically viral",
+    hint: "big name, hype words",
   },
   {
-    label: "Long shot",
+    label: "Vague",
     title: "I built a todo app over the weekend",
-    hint: "Generic, no specifics — typically flops",
+    hint: "no specifics, no hook",
   },
 ];
 
