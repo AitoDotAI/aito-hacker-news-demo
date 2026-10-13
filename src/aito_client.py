@@ -17,6 +17,8 @@ tracking), lift from `aito-accounting-demo/src/aito_client.py`.
 from __future__ import annotations
 
 import contextvars
+import os
+import threading
 from dataclasses import dataclass
 from typing import Any
 
@@ -82,6 +84,14 @@ class AitoClient:
             timeout=10.0,
         )
         self.last_call: AitoCall | None = None
+        # Cap in-flight Aito calls per process. uvicorn runs sync routes on
+        # a 40-thread pool and each predict fans out into 3+ calls, so a
+        # traffic spike would otherwise land on shared.aito.ai (which also
+        # serves customers) as ~120 concurrent queries. Excess requests
+        # queue here instead; the wait is bounded by the httpx timeout.
+        self._gate = threading.BoundedSemaphore(
+            int(os.environ.get("AITO_MAX_CONCURRENCY", "12"))
+        )
 
     @property
     def base_url(self) -> str:
@@ -109,10 +119,14 @@ class AitoClient:
     # ── Low-level ──────────────────────────────────────────────────────
 
     def _request(self, method: str, path: str, body: dict | None = None, op: str | None = None) -> dict:
+        if not self._gate.acquire(timeout=15.0):
+            raise AitoError(f"Aito {path}: too many queries in flight, gave up waiting")
         try:
             r = self._http.request(method, path, json=body)
         except httpx.HTTPError as e:
             raise AitoError(f"Aito {path} unreachable: {e}") from e
+        finally:
+            self._gate.release()
         # r.elapsed is only valid after the response is read/closed (and
         # not at all under booktest's snapshot-replay mock). Trigger a
         # read and fall back to 0.0 on the replay path.
