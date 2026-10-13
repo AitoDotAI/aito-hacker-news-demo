@@ -1,0 +1,166 @@
+{
+  "corpus": {
+    "rows": 351652,
+    "oldest": "2025-09-01T00:00:22+00:00",
+    "newest": "2026-08-31T23:57:04+00:00",
+    "url": "https://shared.aito.ai/db/aito-hn-demo/env/v3",
+    "env": "v3"
+  },
+  "holdout": {
+    "n": 2600,
+    "start": "2026-09-08T00:00:00+00:00",
+    "end": "2026-10-04T00:00:00+00:00",
+    "base_rate": 0.06192307692307692
+  },
+  "full_model": {
+    "auc": 0.6629829962895902,
+    "decile": {
+      "n_per_decile": 260,
+      "base_rate": 0.06192307692307692,
+      "top_decile_rate": 0.13076923076923078,
+      "bottom_decile_rate": 0.03461538461538462,
+      "lift": 2.111801242236025
+    },
+    "calibration": [
+      {
+        "range": "0.00\u20130.05",
+        "n": 1741,
+        "mean_predicted": 0.0212067777139575,
+        "observed": 0.039058012636415854
+      },
+      {
+        "range": "0.05\u20130.10",
+        "n": 362,
+        "mean_predicted": 0.076353591160221,
+        "observed": 0.07458563535911603
+      },
+      {
+        "range": "0.10\u20130.20",
+        "n": 311,
+        "mean_predicted": 0.13807395498392283,
+        "observed": 0.12218649517684887
+      },
+      {
+        "range": "0.20\u20130.35",
+        "n": 130,
+        "mean_predicted": 0.2560076923076923,
+        "observed": 0.1
+      },
+      {
+        "range": "0.35\u20130.60",
+        "n": 49,
+        "mean_predicted": 0.4280204081632653,
+        "observed": 0.22448979591836735
+      },
+      {
+        "range": "0.60\u20131.01",
+        "n": 7,
+        "mean_predicted": 0.6,
+        "observed": 0.5714285714285714
+      }
+    ],
+    "n_scored": 2600
+  },
+  "raw_model": {
+    "auc": 0.6632045513001714,
+    "calibration": [
+      {
+        "range": "0.00\u20130.05",
+        "n": 1769,
+        "mean_predicted": 0.02265686828716789,
+        "observed": 0.0395703787450537
+      },
+      {
+        "range": "0.05\u20130.10",
+        "n": 371,
+        "mean_predicted": 0.07140970350404313,
+        "observed": 0.0862533692722372
+      },
+      {
+        "range": "0.10\u20130.20",
+        "n": 286,
+        "mean_predicted": 0.14079020979020979,
+        "observed": 0.11538461538461539
+      },
+      {
+        "range": "0.20\u20130.35",
+        "n": 127,
+        "mean_predicted": 0.2560944881889764,
+        "observed": 0.09448818897637795
+      },
+      {
+        "range": "0.35\u20130.60",
+        "n": 42,
+        "mean_predicted": 0.42597619047619045,
+        "observed": 0.2619047619047619
+      },
+      {
+        "range": "0.60\u20131.01",
+        "n": 5,
+        "mean_predicted": 0.641,
+        "observed": 0.6
+      }
+    ]
+  },
+  "why_invariant": {
+    "checked": 40,
+    "failures": []
+  },
+  "ablation": {
+    "title only": {
+      "auc": 0.6642295615502739,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.06192307692307692,
+        "top_decile_rate": 0.1423076923076923,
+        "bottom_decile_rate": 0.023076923076923078,
+        "lift": 2.298136645962733
+      },
+      "n": 2600
+    },
+    "domain only": {
+      "auc": 0.6651987125099322,
+      "decile": {
+        "n_per_decile": 249,
+        "base_rate": 0.06375300721732158,
+        "top_decile_rate": 0.1606425702811245,
+        "bottom_decile_rate": 0.01606425702811245,
+        "lift": 2.519764592963047
+      },
+      "n": 2494
+    },
+    "length only": {
+      "auc": 0.5735779096921404,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.06192307692307692,
+        "top_decile_rate": 0.08076923076923077,
+        "bottom_decile_rate": 0.038461538461538464,
+        "lift": 1.3043478260869565
+      },
+      "n": 2600
+    },
+    "hour only": {
+      "auc": 0.4955001413368171,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.06192307692307692,
+        "top_decile_rate": 0.06153846153846154,
+        "bottom_decile_rate": 0.04230769230769231,
+        "lift": 0.9937888198757765
+      },
+      "n": 2600
+    },
+    "title + domain": {
+      "auc": 0.6743700591221904,
+      "decile": {
+        "n_per_decile": 249,
+        "base_rate": 0.06375300721732158,
+        "top_decile_rate": 0.1646586345381526,
+        "bottom_decile_rate": 0.028112449799196786,
+        "lift": 2.582758707787123
+      },
+      "n": 2494
+    }
+  }
+}

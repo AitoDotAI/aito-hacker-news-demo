@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import sys
 import time
@@ -51,8 +52,16 @@ from typing import Any, Callable, Iterable
 import httpx
 
 from src.aito_client import AitoClient, AitoError
+from src.calibration import CALIBRATION_FIT_WINDOW
 from src.config import load_config
-from src.predict_service import TABLE, PredictRequest, predict_hn
+from src.predict_service import (
+    TABLE,
+    PredictRequest,
+    _build_where,
+    _derive,
+    _normalize_why_for_hit,
+    predict_hn,
+)
 
 ALGOLIA = "https://hn.algolia.com/api/v1/search_by_date"
 
@@ -225,6 +234,50 @@ def auc(scored: list[tuple[float, bool]]) -> float:
     return (rank_sum - pos * (pos + 1) / 2) / (pos * neg)
 
 
+def auc_ci(scored: list[tuple[float, bool]], z: float = 1.96) -> tuple[float, float]:
+    """95% interval for AUC by Hanley & McNeil (1982). Good enough to stop
+    us reading meaning into a 0.01 difference on ~150 positives."""
+    a = auc(scored)
+    pos = sum(1 for _, y in scored if y)
+    neg = len(scored) - pos
+    if not pos or not neg or math.isnan(a):
+        return float("nan"), float("nan")
+    q1, q2 = a / (2 - a), 2 * a * a / (1 + a)
+    se = math.sqrt((a * (1 - a) + (pos - 1) * (q1 - a * a) + (neg - 1) * (q2 - a * a))
+                   / (pos * neg))
+    return a - z * se, a + z * se
+
+
+BOOTSTRAP_ROUNDS = 500
+
+
+def paired_delta(a: dict[int, float], b: dict[int, float],
+                 labels: list[bool]) -> dict[str, float]:
+    """AUC(a) - AUC(b) on the posts both scored, with a paired bootstrap
+    95% interval. Paired, because both were scored on the same posts: the
+    per-model intervals are far wider than the uncertainty of the gap."""
+    common = sorted(set(a) & set(b))
+    if not common:
+        return {"delta": float("nan"), "lo": float("nan"), "hi": float("nan"), "n": 0}
+
+    def gap(idx: list[int]) -> float:
+        return (auc([(a[i], labels[i]) for i in idx])
+                - auc([(b[i], labels[i]) for i in idx]))
+
+    rng = random.Random(SEED)
+    deltas = sorted(
+        gap([common[rng.randrange(len(common))] for _ in common])
+        for _ in range(BOOTSTRAP_ROUNDS)
+    )
+    deltas = [d for d in deltas if not math.isnan(d)]
+    return {
+        "delta": gap(common),
+        "lo": deltas[int(len(deltas) * 0.025)],
+        "hi": deltas[int(len(deltas) * 0.975) - 1],
+        "n": len(common),
+    }
+
+
 def decile_lift(scored: list[tuple[float, bool]]) -> dict[str, float]:
     ranked = sorted(scored, key=lambda t: -t[0])
     k = max(1, len(ranked) // 10)
@@ -267,40 +320,105 @@ def _p_front_page(resp: dict) -> float:
     return 0.0
 
 
-def score_full_model(aito: AitoClient, posts: list[Post]) -> list[tuple[float, bool]]:
-    """Score via the demo's real code path, so we measure what ships."""
-    def one(post: Post) -> tuple[float, bool] | None:
+def score_full_model(
+    aito: AitoClient, posts: list[Post],
+) -> tuple[list[tuple[float, bool]], list[tuple[float, bool]], dict[int, float]]:
+    """Score via the demo's real code path, so we measure what ships.
+
+    Returns (shipped, raw, by_post): the calibrated headline the page shows,
+    Aito's own probability before calibration, and the shipped score keyed
+    by post index (for paired comparisons). Calibration must be fitted
+    on `raw` — fitting on `shipped` would stack the new correction on top
+    of whatever calibration happened to be installed when the run was made.
+    """
+    def one(i: int, post: Post) -> tuple[int, float, float, bool] | None:
         try:
-            r = predict_hn(aito, PredictRequest(
-                title=post.title, domain=post.domain,
-                hour_utc=post.hour_utc, day_of_week=post.day_of_week,
-                similar_limit=3,
-            ))
-            return r.headline["front_page_pct"] / 100.0, post.front_page
+            r = predict_hn(aito, _request_for(post))
+            if r.headline.get("floored"):
+                floored.append(i)
+            return (i, r.headline["front_page_pct"] / 100.0,
+                    r.headline["raw_front_page_pct"] / 100.0,
+                    post.front_page)
         except (AitoError, ValueError):
             return None
 
+    floored: list[int] = []  # list.append is atomic under the GIL
     with ThreadPoolExecutor(max_workers=CONCURRENCY) as ex:
-        return [r for r in ex.map(one, posts) if r is not None]
+        rows = [r for r in ex.map(one, range(len(posts)), posts) if r is not None]
+    score_full_model.floored_share = len(floored) / len(rows) if rows else 0.0
+    return ([(s, y) for _, s, _, y in rows], [(r, y) for _, _, r, y in rows],
+            {i: s for i, s, _, _ in rows})
+
+
+def _request_for(post: Post) -> PredictRequest:
+    return PredictRequest(
+        title=post.title, domain=post.domain,
+        hour_utc=post.hour_utc, day_of_week=post.day_of_week,
+        similar_limit=3,
+    )
+
+
+# ── $why invariant ───────────────────────────────────────────────────
+
+WHY_CHECK_N = 40
+
+
+def check_why_invariant(aito: AitoClient, posts: list[Post]) -> dict[str, Any]:
+    """Every bucket the UI shows must carry its OWN hit's explanation.
+
+    Aito returns one $why per predicted value. predict_hn reshapes the
+    response into a per-bucket list, and a reshape is exactly where a
+    probability can end up next to another bucket's $why. So for a sample
+    of posts we issue the same _predict directly and require that, for
+    each bucket, predict_hn's probability and factors equal that bucket's
+    raw hit. Same query against a static index, so equality is exact.
+    """
+    failures: list[str] = []
+    checked = 0
+    for post in posts[:WHY_CHECK_N]:
+        req = _request_for(post)
+        try:
+            shipped = predict_hn(aito, req)
+            raw = aito.predict(
+                table=TABLE, where=_build_where(req, _derive(req)),
+                predict_field="success_bucket", limit=5,
+                select=["feature", "$p", "$why"],
+            )
+        except (AitoError, ValueError):
+            continue
+        hits = {h.get("feature"): h for h in raw.get("hits") or []}
+        for b in shipped.bucket_distribution:
+            hit = hits.get(b.bucket)
+            if hit is None:
+                if b.probability or b.why_factors:
+                    failures.append(f"{post.title!r}: {b.bucket} shown, absent from Aito")
+                continue
+            if abs(float(hit.get("$p", 0.0)) - b.probability) > 1e-9:
+                failures.append(f"{post.title!r}: {b.bucket} $p differs")
+            if _normalize_why_for_hit(hit, limit=3) != b.why_factors:
+                failures.append(f"{post.title!r}: {b.bucket} $why is not its own hit's")
+        checked += 1
+    return {"checked": checked, "failures": failures}
 
 
 def score_ablation(
     aito: AitoClient, posts: list[Post], build_where: Callable[[Post], dict | None],
-) -> list[tuple[float, bool]]:
-    """Score using a single hand-built `where`, to isolate one field."""
-    def one(post: Post) -> tuple[float, bool] | None:
+) -> dict[int, float]:
+    """Score using a single hand-built `where`, to isolate one field.
+    Returns {post index: p(front_page)} for the posts it could score."""
+    def one(i: int, post: Post) -> tuple[int, float] | None:
         where = build_where(post)
         if where is None:
             return None
         try:
             r = aito.predict(table=TABLE, where=where,
                              predict_field="front_page", limit=2)
-            return _p_front_page(r), post.front_page
+            return i, _p_front_page(r)
         except (AitoError, ValueError):
             return None
 
     with ThreadPoolExecutor(max_workers=CONCURRENCY) as ex:
-        return [r for r in ex.map(one, posts) if r is not None]
+        return dict(r for r in ex.map(one, range(len(posts)), posts) if r is not None)
 
 
 ABLATIONS: dict[str, Callable[[Post], dict | None]] = {
@@ -310,7 +428,25 @@ ABLATIONS: dict[str, Callable[[Post], dict | None]] = {
     "hour only":      lambda p: {"hour_utc": {"$numeric": p.hour_utc}},
     "title + domain": lambda p: ({"title": p.title, "domain": p.domain}
                                  if p.domain else None),
+    # The shipped where-clause on the same posts the domain ablations use,
+    # so "does the full query beat title + domain?" compares like with like.
+    "shipped, domain posts": lambda p: _shipped_where(p) if p.domain else None,
+    # The likely replacement query: what the title and URL say, nothing else.
+    "title + domain + flags": lambda p: {
+        k: v for k, v in _shipped_where(p).items()
+        if k in ("title", "domain", "is_show_hn", "is_ask_hn")
+    },
+    # The shipped where-clause without posting time: does hour/day help?
+    "shipped minus time": lambda p: {
+        k: v for k, v in _shipped_where(p).items()
+        if k not in ("hour_utc", "day_of_week")
+    },
 }
+
+
+def _shipped_where(post: Post) -> dict:
+    req = _request_for(post)
+    return _build_where(req, _derive(req))
 
 
 # ── Reporting ────────────────────────────────────────────────────────
@@ -331,7 +467,8 @@ def report(result: dict[str, Any]) -> None:
       f"{h['base_rate']:.1%} of the holdout qualifies\n\n")
 
     m = result["full_model"]
-    w(f"AUC (as shipped)           {m['auc']:.3f}")
+    ci = m.get("auc_ci95") or [float("nan")] * 2
+    w(f"AUC (as shipped)           {m['auc']:.3f}  (95% CI {ci[0]:.3f}-{ci[1]:.3f})")
     w("   ← 0.50 is a coin flip\n")
     d = m["decile"]
     w(f"top-decile front-page rate {d['top_decile_rate']:.1%}  "
@@ -351,11 +488,30 @@ def report(result: dict[str, Any]) -> None:
         w(f"  {row['mean_predicted']:>11.1%}  {row['observed']:>8.1%}  "
           f"{row['n']:>5}{flag}\n")
 
+    if result.get("raw_model"):
+        w(f"\nraw Aito output (before calibration): AUC "
+          f"{result['raw_model']['auc']:.3f}\n")
+        for row in result["raw_model"]["calibration"]:
+            w(f"  {row['mean_predicted']:>11.1%}  {row['observed']:>8.1%}  "
+              f"{row['n']:>5}\n")
+
+    why = result.get("why_invariant")
+    if why:
+        status = "OK" if not why["failures"] else "FAILED"
+        w(f"\n$why invariant: {status} on {why['checked']} predictions "
+          f"(each bucket shows its own hit's $p and $why)\n")
+        for f in why["failures"][:10]:
+            w(f"  {f}\n")
+
     if result.get("ablation"):
         w("\nwhere the signal comes from (AUC from a single field):\n")
         for name, a in result["ablation"].items():
-            w(f"  {name:<16} {a['auc']:.3f}   n={a['n']:>4}   "
-              f"top-decile lift {a['decile']['lift']:.2f}x\n")
+            w(f"  {name:<22} {a['auc']:.3f}   n={a['n']:>4}   "
+              f"top-decile lift {a['decile']['lift']:.2f}x")
+            d = a.get("vs_shipped")
+            if d and d["n"]:
+                w(f"   vs shipped {d['delta']:+.3f} [{d['lo']:+.3f}, {d['hi']:+.3f}]")
+            w("\n")
 
     w("\n")
 
@@ -422,8 +578,13 @@ def main(argv: list[str] | None = None) -> int:
           f"({base_rate:.1%} reached the front page)…")
 
     t0 = time.time()
-    full = score_full_model(aito, posts)
+    full, raw, full_by_post = score_full_model(aito, posts)
+    labels = [p.front_page for p in posts]
     print(f"  full model: {len(full)} scored in {time.time() - t0:.0f}s")
+
+    why = check_why_invariant(aito, posts)
+    print(f"  $why invariant: {why['checked']} checked, "
+          f"{len(why['failures'])} failure(s)")
 
     result: dict[str, Any] = {
         "corpus": {
@@ -441,23 +602,41 @@ def main(argv: list[str] | None = None) -> int:
         },
         "full_model": {
             "auc": auc(full),
+            "auc_ci95": list(auc_ci(full)),
+            # Share of predictions Aito clamped to its probability floor
+            # (aito-core td-20260928210456155330). Titles there all show
+            # the same number, so the page says how common that is.
+            "floored_share": getattr(score_full_model, "floored_share", None),
             "decile": decile_lift(full),
             "calibration": calibration(full),
             "n_scored": len(full),
         },
+        # Aito's output before src/calibration.py touches it. This is what
+        # scripts/fit_calibration.py fits on.
+        "raw_model": {
+            "auc": auc(raw),
+            "calibration": calibration(raw),
+        },
+        "why_invariant": why,
+        "calibration_fit_window": list(CALIBRATION_FIT_WINDOW),
     }
 
     if not args.no_ablation:
         result["ablation"] = {}
         for name, build in ABLATIONS.items():
             t0 = time.time()
-            scored = score_ablation(aito, posts, build)
-            if not scored:
+            by_post = score_ablation(aito, posts, build)
+            if not by_post:
                 continue
+            scored = [(p, labels[i]) for i, p in by_post.items()]
             result["ablation"][name] = {
                 "auc": auc(scored),
+                "auc_ci95": list(auc_ci(scored)),
                 "decile": decile_lift(scored),
                 "n": len(scored),
+                # Positive = this ablation beats the shipped model on the
+                # same posts.
+                "vs_shipped": paired_delta(by_post, full_by_post, labels),
             }
             print(f"  ablation {name}: {len(scored)} scored "
                   f"in {time.time() - t0:.0f}s")
@@ -468,7 +647,9 @@ def main(argv: list[str] | None = None) -> int:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2)
         print(f"wrote {args.json}\n")
-    return 0
+    # An explanation attached to the wrong bucket is a correctness bug, not
+    # a quality number — fail the run so it can't be shipped past quietly.
+    return 1 if why["failures"] else 0
 
 
 if __name__ == "__main__":

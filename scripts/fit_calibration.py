@@ -66,7 +66,16 @@ def main(argv: list[str] | None = None) -> int:
         ap.error(f"no such report: {path}")
     report = json.loads(path.read_text())
 
-    bins = report["full_model"]["calibration"]
+    # Fit on Aito's raw output. full_model's bins are post-calibration, so
+    # fitting on them would layer the new anchors on top of whichever
+    # calibration was installed when the report was made. Reports from
+    # before evaluate.py recorded raw scores can't be fitted safely.
+    if "raw_model" not in report:
+        ap.error(
+            f"{path.name} has no raw_model section: its bins are already "
+            f"calibrated. Re-run scripts/evaluate.py to get raw scores."
+        )
+    bins = report["raw_model"]["calibration"]
     kept = [b for b in bins if b["n"] >= args.min_n]
     dropped = [b for b in bins if b["n"] < args.min_n]
 
@@ -103,7 +112,11 @@ def main(argv: list[str] | None = None) -> int:
     for pred, obs in anchors:
         out(f"    ({pred:.3f}, {obs:.3f}),\n")
     out("]\n\n")
-    out(f"BASE_RATE = {holdout['base_rate']:.3f}\n")
+    out(f"BASE_RATE = {holdout['base_rate']:.3f}\n\n")
+    out("# The holdout these anchors were fitted on. evaluate.py records it so\n")
+    out("# publish_eval.py can tell an out-of-sample calibration check from an\n")
+    out("# in-sample one.\n")
+    out(f'CALIBRATION_FIT_WINDOW = ("{holdout["start"][:10]}", "{holdout["end"][:10]}")\n')
     return 0
 
 

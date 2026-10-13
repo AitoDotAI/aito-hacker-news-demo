@@ -1,0 +1,113 @@
+{
+  "corpus": {
+    "rows": 351652,
+    "oldest": "2025-09-01T00:00:22+00:00",
+    "newest": "2026-08-31T23:57:04+00:00",
+    "url": "https://shared.aito.ai/db/aito-hn-demo/env/v3",
+    "env": "v3"
+  },
+  "holdout": {
+    "n": 4000,
+    "start": "2026-09-08T00:00:00+00:00",
+    "end": "2026-09-22T00:00:00+00:00",
+    "base_rate": 0.07125
+  },
+  "full_model": {
+    "auc": 0.6691398077967462,
+    "decile": {
+      "n_per_decile": 400,
+      "base_rate": 0.07125,
+      "top_decile_rate": 0.1775,
+      "bottom_decile_rate": 0.035,
+      "lift": 2.491228070175439
+    },
+    "calibration": [
+      {
+        "range": "0.00\u20130.05",
+        "n": 2668,
+        "mean_predicted": 0.021522113943028488,
+        "observed": 0.04572713643178411
+      },
+      {
+        "range": "0.05\u20130.10",
+        "n": 567,
+        "mean_predicted": 0.07694003527336861,
+        "observed": 0.07760141093474426
+      },
+      {
+        "range": "0.10\u20130.20",
+        "n": 500,
+        "mean_predicted": 0.13514400000000001,
+        "observed": 0.14
+      },
+      {
+        "range": "0.20\u20130.35",
+        "n": 183,
+        "mean_predicted": 0.2602021857923497,
+        "observed": 0.16393442622950818
+      },
+      {
+        "range": "0.35\u20130.60",
+        "n": 68,
+        "mean_predicted": 0.45286764705882354,
+        "observed": 0.22058823529411764
+      },
+      {
+        "range": "0.60\u20131.01",
+        "n": 14,
+        "mean_predicted": 0.6,
+        "observed": 0.2857142857142857
+      }
+    ],
+    "n_scored": 4000
+  },
+  "raw_model": {
+    "auc": 0.6692607022266298,
+    "calibration": [
+      {
+        "range": "0.00\u20130.05",
+        "n": 2701,
+        "mean_predicted": 0.022871158830062938,
+        "observed": 0.04590892262125139
+      },
+      {
+        "range": "0.05\u20130.10",
+        "n": 594,
+        "mean_predicted": 0.07155555555555555,
+        "observed": 0.08080808080808081
+      },
+      {
+        "range": "0.10\u20130.20",
+        "n": 454,
+        "mean_predicted": 0.1369603524229075,
+        "observed": 0.14537444933920704
+      },
+      {
+        "range": "0.20\u20130.35",
+        "n": 178,
+        "mean_predicted": 0.2571179775280899,
+        "observed": 0.16292134831460675
+      },
+      {
+        "range": "0.35\u20130.60",
+        "n": 64,
+        "mean_predicted": 0.4511875,
+        "observed": 0.234375
+      },
+      {
+        "range": "0.60\u20131.01",
+        "n": 9,
+        "mean_predicted": 0.6940000000000001,
+        "observed": 0.3333333333333333
+      }
+    ]
+  },
+  "why_invariant": {
+    "checked": 40,
+    "failures": []
+  },
+  "calibration_fit_window": [
+    "2026-06-07",
+    "2026-08-01"
+  ]
+}
