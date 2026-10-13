@@ -112,22 +112,22 @@
     <div>
       <h1>How well can you predict the HN front page?</h1>
       <p class="sub">
-        We scored <b>2,600 held-out submissions</b> against 335,000 past ones,
-        and published the number. Real signal &mdash; and a long way from
+        We scored <b><span data-eval="holdout_n">6,000</span> held-out submissions</b> against <span data-eval="corpus_k">352,000</span> past ones,
+        and published the number. Real signal, and a long way from
         clairvoyance.
       </p>
 
       <div class="stats">
         <div class="stat hot">
-          <div class="val">0.623</div>
-          <div class="lbl">AUC &mdash; 0.5 is a coin flip</div>
+          <div class="val" data-eval="auc">0.629</div>
+          <div class="lbl">AUC (0.5 is a coin flip)</div>
         </div>
         <div class="stat">
-          <div class="val">1.86&times;</div>
+          <div class="val"><span data-eval="lift">2.28</span>&times;</div>
           <div class="lbl">top-decile hit rate</div>
         </div>
         <div class="stat dim">
-          <div class="val">2,600</div>
+          <div class="val" data-eval="holdout_n">6,000</div>
           <div class="lbl">held-out submissions</div>
         </div>
       </div>

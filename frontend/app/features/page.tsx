@@ -71,7 +71,7 @@ function FieldList({ field, accent }: { field: FieldFeatures; accent: string }) 
     return (
       <div className="hn-feat-field">
         <div className="hn-feat-field-label">{field.label}</div>
-        <div className="hn-feat-empty">— no significant features</div>
+        <div className="hn-feat-empty">no significant features</div>
       </div>
     );
   }

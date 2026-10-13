@@ -587,6 +587,7 @@ select.hn-text-input{width:auto}
   padding-left:24px;
 }
 .hn-examples-list li{padding:1px 0}
+.hn-examples-list .hn-link-btn{text-align:left}
 
 /* ── Result: predicted story entry ─────────────────────────── */
 .hn-result-card{
