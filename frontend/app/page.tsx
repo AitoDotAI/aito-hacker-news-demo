@@ -8,6 +8,8 @@ import ErrorState from "@/components/shell/ErrorState";
 import BucketBar from "@/components/hn/BucketBar";
 import SimilarPosts from "@/components/hn/SimilarPosts";
 import SimilarDistribution from "@/components/hn/SimilarDistribution";
+import { AccuracySection } from "@/components/hn/AccuracySection";
+import { EVAL } from "@/lib/eval";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { AitoPanelConfig } from "@/lib/types";
 import {
@@ -20,19 +22,18 @@ import {
 const PANEL_CONFIG: AitoPanelConfig = {
   operation: "POST /api/v1/_predict + /_search",
   stats: [
-    { value: "335k", label: "submissions indexed" },
+    { value: `${Math.round(EVAL.corpus.rows / 1000)}k`, label: "submissions indexed" },
     { value: "3", label: "Aito calls / prediction" },
     { value: "0", label: "ML pipelines" },
   ],
   description:
-    "Each prediction fans out to three Aito calls: <code>_predict success_bucket</code> for the 5-class distribution, " +
-    "<code>_predict front_page</code> for the binary headline, and <code>_search</code> for similar past submissions. " +
-    "The search runs on the input's <em>rarest</em> tokens and the hits are re-ranked by IDF weight — matching on " +
-    "&ldquo;rust&rdquo; should count for more than matching on &ldquo;why&rdquo;. Token rarity comes from cached " +
-    "<code>_search</code> counts, so a cold token costs one extra call and nothing thereafter. " +
-    "No training step and no model file — Aito infers directly from its index. The front-page number is " +
-    "checked against a 2,600-submission holdout; on this corpus the raw output is already close to calibrated, " +
-    "so the correction is small. Both figures are shown.",
+    "Each prediction runs three Aito queries in parallel: <code>_predict success_bucket</code> for the 5-class distribution, " +
+    "<code>_predict front_page</code> for the headline number, and <code>_search</code> for similar past submissions. " +
+    "The search keeps titles that share the input's <em>rarest</em> words, orders them by <code>$similarity</code>, " +
+    "and re-ranks them by IDF weight, because matching on &ldquo;rust&rdquo; should count for more than matching on " +
+    "&ldquo;why&rdquo;. Word rarity comes from cached <code>_search</code> counts. " +
+    "There is no training step and no model file: Aito answers from its index. At the high end the raw front-page " +
+    "number is overconfident, so the page shows it corrected against held-out submissions, with the raw figure next to it.",
   query: JSON.stringify(
     {
       method: "POST",
@@ -208,7 +209,7 @@ export default function Home() {
                       value={dateStr}
                       disabled={!pinTime}
                       onChange={(e) => setDateStr(e.target.value || defaults.date)}
-                      title="UTC date — Aito only knows day-of-week, the date is a convenience"
+                      title="UTC date. Aito only uses the day of the week; the date is a convenience."
                     />
                     {" "}
                     <span className="hn-meta-line">({DAYS[effectiveDow]})</span>
@@ -262,7 +263,7 @@ export default function Home() {
                     </button>
                     {pinLength && titleLength !== derivedLength && (
                       <span className="hn-meta-line">
-                        {" "}— actual title is {derivedLength} chars
+                        {" "}(actual title is {derivedLength} chars)
                       </span>
                     )}
                   </td>
@@ -339,10 +340,15 @@ export default function Home() {
                           {data.headline.band} odds
                         </span>
                         {" "}|{" "}
-                        <strong>{data.headline.front_page_pct.toFixed(1)}%</strong>
+                        <strong>
+                          {data.headline.floored && "\u2264 "}
+                          {data.headline.front_page_pct.toFixed(1)}%
+                        </strong>
                         {" "}front page vs{" "}
                         {data.headline.base_rate_pct.toFixed(1)}% for a typical
-                        {" "}submission ({data.headline.relative_to_base.toFixed(2)}x)
+                        {" "}submission
+                        {!data.headline.floored &&
+                          ` (${data.headline.relative_to_base.toFixed(2)}x)`}
                         {" "}|{" "}
                         ~{Math.round(data.estimated_score.most_likely_midpoint)} points
                         {" "}|{" "}
@@ -350,12 +356,23 @@ export default function Home() {
                         {" "}|{" "}
                         {clock}
                       </div>
+                      {data.headline.floored && (
+                        <div className="hn-story-meta hn-meta-line">
+                          This is Aito&rsquo;s floor: the title&rsquo;s words point lower
+                          {" "}than it will go, so it reports a minimum instead.
+                          {EVAL.shipped.floored_share != null &&
+                            ` ${Math.round(EVAL.shipped.floored_share * 100)}% of held-out titles land here,`}
+                          {" "}and titles at the floor can&rsquo;t be
+                          {" "}told apart. Rewording one usually won&rsquo;t move this number;
+                          {" "}the similar posts below are the better guide.
+                        </div>
+                      )}
                       <div className="hn-story-meta hn-meta-line">
                         Aito&rsquo;s raw output was{" "}
                         {data.headline.raw_front_page_pct.toFixed(1)}%; shown
-                        {" "}calibrated against 2,600 held-out submissions, which
-                        {" "}on this corpus barely moves it — the raw numbers
-                        {" "}measure up well below ~25%.{" "}
+                        {" "}calibrated against{" "}
+                        {EVAL.holdout.n.toLocaleString("en-US")} held-out
+                        {" "}submissions.{" "}
                         <a href="#accuracy">How accurate is this?</a>
                       </div>
                     </div>
@@ -371,7 +388,7 @@ export default function Home() {
               <section id="similar" className="hn-block">
                 <div className="hn-block-title">
                   similar past submissions
-                  <span className="hn-meta-line"> — same words, wildly different outcomes</span>
+                  <span className="hn-meta-line"> (same words, wildly different outcomes)</span>
                 </div>
                 <div className="hn-similar-row">
                   <div className="hn-similar-list-col">
@@ -387,49 +404,9 @@ export default function Home() {
               <section className="hn-block">
                 <div className="hn-block-title">
                   outcome distribution
-                  <span className="hn-meta-line"> — what Aito infers from the corpus</span>
+                  <span className="hn-meta-line"> (what Aito infers from the corpus)</span>
                 </div>
                 <BucketBar distribution={data.bucket_distribution} />
-              </section>
-
-              <section id="accuracy" className="hn-block hn-accuracy">
-                <div className="hn-block-title">how accurate is this?</div>
-                <p>
-                  Somewhat, and we measured it rather than guessing.
-                  Scoring 2,600 submissions posted <em>after</em> the corpus
-                  ends — so the index has never seen them — the front-page
-                  prediction gets <strong>AUC 0.623</strong>, where 0.5 is a
-                  coin flip. The top-decile predictions reach the front page{" "}
-                  <strong>1.9x</strong> as often as a typical submission, and
-                  the probabilities are close to honest: submissions we call
-                  12% land at 12.7%, and 24% land at 25.0%. Above roughly 25%
-                  we have too few measurements to promise anything.
-                </p>
-                <p>
-                  The interesting part is what <em>doesn&rsquo;t</em> stack.
-                  Title alone scores 0.617; domain alone scores 0.619; both
-                  together score <strong>0.623</strong>. Two signals that look
-                  independent are telling us nearly the same thing, so
-                  combining them buys almost nothing. Posting hour (0.535) and
-                  title length (0.517) are close to noise.
-                </p>
-                <p className="hn-meta-line">
-                  Reproduce it yourself:{" "}
-                  <code>uv run python -m scripts.evaluate</code> in{" "}
-                  <a
-                    href="https://github.com/AitoDotAI/aito-hacker-news-demo"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    the repo
-                  </a>
-                  . The corpus is 335,368 submissions from 2025-06-01 to
-                  2026-05-31, so the &ldquo;similar past submissions&rdquo; above
-                  are drawn from that window. Scoring the same 2,600 against our
-                  previous 2023 corpus gave 0.594 — recency is worth about 0.03
-                  of AUC, which is why the corpus gets rebuilt rather than left
-                  to rot.
-                </p>
               </section>
 
               <div className="hn-footnote">
@@ -449,6 +426,8 @@ export default function Home() {
               </div>
             </>
           )}
+
+          <AccuracySection />
         </div>
       </main>
       <AitoPanel

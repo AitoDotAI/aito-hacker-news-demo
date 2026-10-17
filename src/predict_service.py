@@ -27,6 +27,7 @@ full bucket distribution and the actual spread of similar posts.
 
 from __future__ import annotations
 
+import contextvars
 import math
 import re
 import threading
@@ -158,7 +159,7 @@ def _idf_weights(aito: AitoClient, tokens: list[str]) -> dict[str, float]:
     missing = [t for t in tokens if (aito.base_url, t) not in _DF_CACHE]
     if missing:
         with ThreadPoolExecutor(max_workers=min(_DF_WORKERS, len(missing))) as ex:
-            list(ex.map(lambda t: _document_frequency(aito, t), missing))
+            list(ex.map(lambda t: contextvars.copy_context().run(_document_frequency, aito, t), missing))
 
     weights: dict[str, float] = {}
     for t in tokens:
@@ -290,6 +291,29 @@ def _bucket_probabilities(predict_response: dict) -> dict[str, float]:
     return out
 
 
+def _front_page_floored(predict_response: dict) -> bool:
+    """True when Aito clamped p(front_page) up to its probability floor.
+
+    Aito's predict caps how small a probability may get (the `rowCap`
+    calibration factor in $why). On this corpus about half of all titles
+    land exactly on the floor (1/52 on 2.11.4), whatever their words, so
+    two titles showing the same number usually means "both at the floor",
+    not "equally good". The UI says so instead of printing a precise-
+    looking figure. Tracked in aito-core td-20260928210456155330.
+    """
+    def lifted(node: Any) -> bool:
+        if not isinstance(node, dict):
+            return False
+        if node.get("type") == "calibration" and node.get("name") == "rowCap":
+            return float(node.get("value", 1.0)) > 1.0 + 1e-9
+        return any(lifted(f) for f in node.get("factors") or [])
+
+    for hit in predict_response.get("hits", []):
+        if hit.get("feature") is True:
+            return lifted(hit.get("$why"))
+    return False
+
+
 def _front_page_pct(predict_response: dict) -> float:
     """Pull the `true` probability out of a binary predict response."""
     for hit in predict_response.get("hits", []):
@@ -348,8 +372,21 @@ def _similar_posts(
                 similarity=round(rank, 3),
             ),
         ))
-    rows.sort(key=lambda r: -r[0])
-    return [p for _, p in rows[:limit]]
+    # Resubmissions share a title; showing four copies of one story wastes
+    # the list. Keep the best-scoring copy, since that is the outcome the
+    # title actually achieved.
+    rows.sort(key=lambda r: (-r[0], -r[1].score))
+    out: list[SimilarPost] = []
+    seen: set[str] = set()
+    for _, p in rows:
+        k = " ".join(p.title.lower().split())
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(p)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _expected_score(bucket_probs: dict[str, float]) -> EstimatedScore:
@@ -476,61 +513,93 @@ def _iter_propositions(prop: dict):
             yield field, cond
 
 
+# Shared pool for the parallel legs of a prediction. Sized above the Aito
+# concurrency cap (AitoClient gates in-flight queries) so the gate, not
+# this pool, is what limits load on the Aito instance.
+_LEG_POOL = ThreadPoolExecutor(max_workers=48, thread_name_prefix="predict-leg")
+
+
+def _submit(fn):
+    ctx = contextvars.copy_context()
+    return _LEG_POOL.submit(ctx.run, fn)
+
+
 def predict_hn(aito: AitoClient, req: PredictRequest) -> PredictResponse:
     derived = _derive(req)
     where = _build_where(req, derived)
 
-    bucket_resp = aito.predict(
-        table=TABLE,
-        where=where,
-        predict_field="success_bucket",
-        limit=5,
-        # Ask for $why on this one only — it powers the "what drove this"
-        # panel. The front_page predict is just a number.
-        select=["feature", "$p", "$why"],
-    )
-    fp_resp = aito.predict(
-        table=TABLE,
-        where=where,
-        predict_field="front_page",
-        limit=2,
-    )
-    # Similar past submissions: tokenise the title, search with $or across
-    # tokens, then re-rank in Python.
-    #
-    # Why not Aito's $similarity orderBy? With $or across tokens Aito
-    # returns the same similarity score for every hit (each only proves
-    # the disjunction with one match), so we can't actually rank with it.
-    #
-    # Which tokens go into the $or matters more than it looks. Aito returns
-    # an arbitrary `limit` slice of the matches, and a disjunction
-    # containing a common word like "why" matches tens of thousands of
-    # rows — so the slice we get back is close to random and the re-rank
-    # has nothing good to choose from. Searching on the *rarest* tokens
-    # gives a candidate pool that is already topical.
+    def bucket() -> dict:
+        return aito.predict(
+            table=TABLE,
+            where=where,
+            predict_field="success_bucket",
+            limit=5,
+            # Ask for $why on this one only — it powers the "what drove this"
+            # panel. The front_page predict is just a number.
+            select=["feature", "$p", "$why"],
+        )
+
+    def front_page() -> dict:
+        return aito.predict(
+            table=TABLE,
+            where=where,
+            predict_field="front_page",
+            limit=2,
+            # $why here is only read for the rowCap factor, to detect a
+            # floored probability (see _front_page_floored).
+            select=["feature", "$p", "$why"],
+        )
+
     tokens = _tokenize(req.title)
     sim_limit = req.similar_limit if req.similar_limit is not None else SIMILAR_LIMIT
-    idf = _idf_weights(aito, tokens[:12]) if tokens else {}
+    fetch_n = min(SIMILAR_FETCH, max(sim_limit * 12, SIMILAR_FETCH)) if tokens else 0
 
-    if tokens:
-        ranked_tokens = sorted(
-            tokens[:12], key=lambda t: idf.get(t, _DEFAULT_IDF), reverse=True
-        )
-        search_tokens = ranked_tokens[:SEARCH_TOKENS]
-        # Over-fetch so the re-rank has headroom.
-        fetch_n = min(SIMILAR_FETCH, max(sim_limit * 12, SIMILAR_FETCH))
-        token_clauses = [{"title": {"$match": t}} for t in search_tokens]
-        where_search: dict[str, Any] = (
-            token_clauses[0] if len(token_clauses) == 1 else {"$or": token_clauses}
-        )
-        similar_resp = aito.search(
-            table=TABLE,
-            where=where_search,
-            limit=fetch_n,
-        )
-    else:
-        fetch_n = 0
-        similar_resp = {"hits": []}
+    def similar() -> tuple[dict, dict[str, float]]:
+        # Similar past submissions: filter to titles sharing the input's
+        # rarest tokens, order that set by $similarity, re-rank in Python.
+        #
+        # The filter keeps the candidates topical: a disjunction containing
+        # a common word like "why" matches tens of thousands of rows, while
+        # the rarest tokens give a pool that is already about the subject.
+        # $similarity then picks the best `limit` from the whole pool rather
+        # than the first ones inserted. It can't be the final order on its
+        # own, because it weights words like "minimal" and "written" over
+        # "postgres"; the IDF re-rank in _similar_posts fixes that.
+        idf = _idf_weights(aito, tokens[:12]) if tokens else {}
+
+        if tokens:
+            ranked_tokens = sorted(
+                tokens[:12], key=lambda t: idf.get(t, _DEFAULT_IDF), reverse=True
+            )
+            search_tokens = ranked_tokens[:SEARCH_TOKENS]
+            token_clauses = [{"title": {"$match": t}} for t in search_tokens]
+            where_search: dict[str, Any] = (
+                token_clauses[0] if len(token_clauses) == 1 else {"$or": token_clauses}
+            )
+            # Without an orderBy Aito returns the first `limit` matches in
+            # insertion order, so every candidate came from the corpus's first
+            # weeks (2025-09 for the v3 corpus, 2023-05 for V1). Ordering the
+            # filtered set by $similarity draws the candidates from the whole
+            # year; the IDF re-rank below still decides the final order.
+            similar_resp = aito.search(
+                table=TABLE,
+                where=where_search,
+                limit=fetch_n,
+                order_by={"$similarity": {"title": req.title}},
+            )
+        else:
+            similar_resp = {"hits": []}
+        return similar_resp, idf
+
+    # The three legs are independent, so run them side by side: the request
+    # then costs the slowest leg rather than the sum. Each task runs in a
+    # copy of this request's context so its Aito calls still land in the
+    # per-request log behind the X-Aito-* headers.
+    f_bucket = _submit(bucket)
+    f_fp = _submit(front_page)
+    f_sim = _submit(similar)
+    bucket_resp, fp_resp = f_bucket.result(), f_fp.result()
+    similar_resp, idf = f_sim.result()
 
     bucket_probs = _bucket_probabilities(bucket_resp)
     bucket_factors = _per_bucket_why(bucket_resp)
@@ -551,6 +620,8 @@ def predict_hn(aito: AitoClient, req: PredictRequest) -> PredictResponse:
             # its work rather than quietly rewriting the model.
             "front_page_pct": round(calibrated * 100.0, 1),
             "raw_front_page_pct": round(front_page_pct, 1),
+            # Aito's floor, not evidence: show as "this or less".
+            "floored": _front_page_floored(fp_resp),
             "base_rate_pct": round(BASE_RATE * 100.0, 1),
             "relative_to_base": round(relative_to_base(calibrated), 2),
             "band": calibration_band(calibrated),

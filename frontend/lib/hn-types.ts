@@ -53,6 +53,9 @@ export interface PredictHnResponse {
     front_page_pct: number;
     /** Aito's uncorrected output, shown alongside so we're not hiding it. */
     raw_front_page_pct: number;
+    /** Aito clamped the raw value up to its probability floor: the true
+     *  figure is this or lower, and titles at the floor can't be told apart. */
+    floored?: boolean;
     /** Front-page rate of a typical submission, for comparison. */
     base_rate_pct: number;
     /** front_page_pct / base_rate_pct. 1.0 = indistinguishable from average. */
@@ -68,10 +71,10 @@ export interface PredictHnResponse {
 }
 
 // Example titles shown on first load. The hints describe the *shape* of
-// each title, not a promised outcome — the holdout evaluation found title
-// wording carries almost no signal (AUC 0.514), so claiming "historically
-// viral" for a phrasing would be asserting something we measured to be
-// false. Try them and compare; that disagreement is the point of the demo.
+// each title, not a promised outcome: the title is real but modest signal
+// (see lib/eval-summary.json), nowhere near enough to call a phrasing
+// "historically viral". Try them and compare; the spread of similar posts
+// is the point of the demo.
 export const EXAMPLE_TITLES: { label: string; title: string; hint: string }[] = [
   {
     label: "Show HN classic",

@@ -11,6 +11,9 @@ The static mount must stay last so it doesn't shadow /api/*.
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -24,7 +27,15 @@ from src.predict_service import PredictRequest, PredictResponse, predict_hn
 config = load_config()
 aito = AitoClient(config)
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # _prewarm is defined further down; it runs after import completes.
+    threading.Thread(target=_prewarm, name="aito-prewarm", daemon=True).start()
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Predictive Hacker News",
     description="Predict the performance of a Hacker News submission, powered by Aito.",
     version="0.1.0",
@@ -78,12 +89,60 @@ def schema():
 
 # ── Predict ───────────────────────────────────────────────────────
 
+#
+# Responses are cached on the exact request. The corpus is static between
+# reloads, so an identical request always gets an identical answer, and
+# launch traffic is dominated by repeats (the example titles, the title
+# people saw in the post). X-Cache tells the client whether Aito ran, so
+# a cached answer never passes for a fresh query's latency.
+
+_PREDICT_CACHE_MAX = 4096
+_predict_cache: OrderedDict[str, PredictResponse] = OrderedDict()
+_predict_cache_lock = threading.Lock()
+
+
 @app.post("/api/predict-hn", response_model=PredictResponse)
-def predict(req: PredictRequest):
+def predict(req: PredictRequest, response: Response):
+    key = req.model_dump_json()
+    with _predict_cache_lock:
+        hit = _predict_cache.get(key)
+        if hit is not None:
+            _predict_cache.move_to_end(key)
+    if hit is not None:
+        response.headers["X-Cache"] = "hit"
+        return hit
     try:
-        return predict_hn(aito, req)
+        result = predict_hn(aito, req)
     except AitoError as e:
         raise HTTPException(status_code=502, detail=str(e))
+    with _predict_cache_lock:
+        _predict_cache[key] = result
+        if len(_predict_cache) > _PREDICT_CACHE_MAX:
+            _predict_cache.popitem(last=False)
+    response.headers["X-Cache"] = "miss"
+    return result
+
+
+# The first query against a cold Aito index takes ~1.7 s against ~60 ms
+# warm (measured 2026-10-10). Warm it in the background at startup so the
+# first visitor after a deploy doesn't pay for it. Best effort: a failure
+# here only means the first real request is slow.
+_PREWARM_TITLES = [
+    "Show HN: A minimal Postgres client written in Rust",
+    "OpenAI announces new model with breakthrough reasoning",
+    "I built a todo app over the weekend",
+]
+
+
+def _prewarm() -> None:
+    for title in _PREWARM_TITLES:
+        try:
+            predict_hn(aito, PredictRequest(title=title))
+        except Exception as e:  # noqa: BLE001 — never let warmup kill the app
+            print(f"prewarm failed for {title!r}: {e}")
+
+
+
 
 
 @app.get("/api/category-features", response_model=CategoryFeaturesResponse)

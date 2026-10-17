@@ -1,0 +1,180 @@
+{
+  "corpus": {
+    "rows": 351652,
+    "oldest": "2025-09-01T00:00:22+00:00",
+    "newest": "2026-08-31T23:57:04+00:00",
+    "url": "https://shared.aito.ai/db/aito-hn-demo/env/v3",
+    "env": "v3"
+  },
+  "holdout": {
+    "n": 2600,
+    "start": "2026-09-22T00:00:00+00:00",
+    "end": "2026-10-04T00:00:00+00:00",
+    "base_rate": 0.07230769230769231
+  },
+  "full_model": {
+    "auc": 0.6177225574256378,
+    "decile": {
+      "n_per_decile": 260,
+      "base_rate": 0.07230769230769231,
+      "top_decile_rate": 0.1576923076923077,
+      "bottom_decile_rate": 0.046153846153846156,
+      "lift": 2.1808510638297873
+    },
+    "calibration": [
+      {
+        "range": "0.00\u20130.05",
+        "n": 1371,
+        "mean_predicted": 0.03904303428154632,
+        "observed": 0.05324580598103574
+      },
+      {
+        "range": "0.05\u20130.10",
+        "n": 708,
+        "mean_predicted": 0.06804378531073448,
+        "observed": 0.06497175141242938
+      },
+      {
+        "range": "0.10\u20130.20",
+        "n": 478,
+        "mean_predicted": 0.1407029288702929,
+        "observed": 0.11297071129707113
+      },
+      {
+        "range": "0.20\u20130.35",
+        "n": 43,
+        "mean_predicted": 0.24183720930232555,
+        "observed": 0.3488372093023256
+      }
+    ],
+    "n_scored": 2600
+  },
+  "raw_model": {
+    "auc": 0.6180335026992696,
+    "calibration": [
+      {
+        "range": "0.00\u20130.05",
+        "n": 1700,
+        "mean_predicted": 0.02306,
+        "observed": 0.052941176470588235
+      },
+      {
+        "range": "0.05\u20130.10",
+        "n": 426,
+        "mean_predicted": 0.06996948356807511,
+        "observed": 0.08215962441314555
+      },
+      {
+        "range": "0.10\u20130.20",
+        "n": 314,
+        "mean_predicted": 0.13788216560509556,
+        "observed": 0.09872611464968153
+      },
+      {
+        "range": "0.20\u20130.35",
+        "n": 115,
+        "mean_predicted": 0.2600782608695652,
+        "observed": 0.1391304347826087
+      },
+      {
+        "range": "0.35\u20130.60",
+        "n": 37,
+        "mean_predicted": 0.4227837837837838,
+        "observed": 0.24324324324324326
+      },
+      {
+        "range": "0.60\u20131.01",
+        "n": 8,
+        "mean_predicted": 0.6713749999999999,
+        "observed": 0.875
+      }
+    ]
+  },
+  "why_invariant": {
+    "checked": 40,
+    "failures": []
+  },
+  "calibration_fit_window": [
+    "2026-09-08",
+    "2026-09-22"
+  ],
+  "ablation": {
+    "title only": {
+      "auc": 0.6289529744892558,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.07230769230769231,
+        "top_decile_rate": 0.14615384615384616,
+        "bottom_decile_rate": 0.04230769230769231,
+        "lift": 2.021276595744681
+      },
+      "n": 2600
+    },
+    "domain only": {
+      "auc": 0.6362691953926388,
+      "decile": {
+        "n_per_decile": 248,
+        "base_rate": 0.07472880674969867,
+        "top_decile_rate": 0.18548387096774194,
+        "bottom_decile_rate": 0.028225806451612902,
+        "lift": 2.4820933055844607
+      },
+      "n": 2489
+    },
+    "length only": {
+      "auc": 0.54334819695847,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.07230769230769231,
+        "top_decile_rate": 0.08846153846153847,
+        "bottom_decile_rate": 0.06538461538461539,
+        "lift": 1.223404255319149
+      },
+      "n": 2600
+    },
+    "hour only": {
+      "auc": 0.5153995095444762,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.07230769230769231,
+        "top_decile_rate": 0.07307692307692308,
+        "bottom_decile_rate": 0.057692307692307696,
+        "lift": 1.0106382978723405
+      },
+      "n": 2600
+    },
+    "title + domain": {
+      "auc": 0.6450258895596673,
+      "decile": {
+        "n_per_decile": 248,
+        "base_rate": 0.07472880674969867,
+        "top_decile_rate": 0.1935483870967742,
+        "bottom_decile_rate": 0.04032258064516129,
+        "lift": 2.5900104058272633
+      },
+      "n": 2489
+    },
+    "shipped, domain posts": {
+      "auc": 0.6156602654788752,
+      "decile": {
+        "n_per_decile": 248,
+        "base_rate": 0.07472880674969867,
+        "top_decile_rate": 0.16532258064516128,
+        "bottom_decile_rate": 0.04435483870967742,
+        "lift": 2.212300554977454
+      },
+      "n": 2489
+    },
+    "shipped minus time": {
+      "auc": 0.6344739070604425,
+      "decile": {
+        "n_per_decile": 260,
+        "base_rate": 0.07230769230769231,
+        "top_decile_rate": 0.18461538461538463,
+        "bottom_decile_rate": 0.05384615384615385,
+        "lift": 2.5531914893617023
+      },
+      "n": 2600
+    }
+  }
+}
